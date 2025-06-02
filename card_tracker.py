@@ -888,7 +888,7 @@ def main():
                 if save_data(new_df_row, SPREADSHEET_ID, WORKSHEET_NAME):
                     success_placeholder.success("戦績を記録しました！")
                    
-                    st.toast("これはテストトーストです！") # ★単純なテストメッセージに変更
+
 
 
                     # --- ▲▲▲ リセット処理ここまで ▲▲▲ ---
