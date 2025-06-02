@@ -851,35 +851,37 @@ def main():
                 new_df_row = pd.DataFrame([new_record_data], columns=COLUMNS)
                 if save_data(new_df_row, SPREADSHEET_ID, WORKSHEET_NAME):
                     success_placeholder.success("戦績を記録しました！")
-                    # ... (リセット処理は変更なし) ...
-                    keys_to_reset_after_save = {
-                        # 「フォーマット」はリセットしないので、ここには含めません。
-                        # 'inp_format_select': "ローテーション", # 例えばこのようにするとリセットされる
-                        
-                        # リセットしたい項目と、そのリセット後の値を指定
-                        'inp_first_second': "先攻",  # または st.session_state.inp_first_second の初期選択肢
-                        'inp_result': "勝ち",        # または st.session_state.inp_result の初期選択肢
-                        'inp_finish_turn': 7,      # 以前7に設定されていたデフォルト値
+                   # --- ▼▼▼ リセット処理の変更 ▼▼▼ ---
+                    
+                    # 常に表示されているウィジェットのキーと、そのリセット後の値を定義
+                    keys_to_reset_always_visible = {
+                        'inp_first_second': "先攻",
+                        'inp_result': "勝ち",
+                        'inp_finish_turn': 7,      # 以前7に設定されていたデフォルト値 (適宜変更してください)
                         'inp_memo': "",            # メモ欄を空にする
-                        
-                        # 新規入力用のテキストフィールドもクリアする
-                        'inp_season_new': "",
-                        'inp_environment_new': "",
-                        'inp_format_new': "",      # 「フォーマット」のテキスト入力欄はクリア
-                        'inp_my_deck_new': "",
-                        'inp_my_deck_type_new': "",
-                        'inp_opponent_deck_new': "",
-                        'inp_opponent_deck_type_new': ""
-                        # 'inp_my_class_new', 'inp_opponent_class_new' はクラス入力簡略化で削除されたので不要
+                        # 「フォーマット」の inp_format_select は意図的にリセットしない
                     }
 
-                    for key, value in keys_to_reset_after_save.items():
-                        if key in st.session_state: # キーが存在することを確認してから値を設定
+                    for key, value in keys_to_reset_always_visible.items():
+                        if key in st.session_state: # キーが存在することを確認
                             st.session_state[key] = value
-                        # もしキーが存在しない場合に作成もしたいなら以下のようにするが、
-                        # 通常はウィジェット定義時にセッションステートは初期化されるはず
-                        # else:
-                        #     st.session_state[key] = value
+                    
+                    # 条件付きで表示される _new サフィックスのついたキーは、popで削除する
+                    # これにより、次回描画時に value=st.session_state.get(key, "") が空文字列を参照する
+                    keys_to_pop_for_new_entry = [
+                        'inp_season_new',
+                        'inp_environment_new',
+                        'inp_format_new',          # 「フォーマット」の新しい値入力欄もクリア
+                        'inp_my_deck_new',
+                        'inp_my_deck_type_new',
+                        'inp_opponent_deck_new',
+                        'inp_opponent_deck_type_new'
+                        # 'inp_my_class_new', 'inp_opponent_class_new' はクラス入力簡略化で削除されたので不要
+                    ]
+
+                    for key_to_pop in keys_to_pop_for_new_entry:
+                        st.session_state.pop(key_to_pop, None) # キーが存在すれば削除、なければ何もしない
+
                     # --- ▲▲▲ リセット処理の変更ここまで ▲▲▲ ---
                     st.rerun()
                 else:
