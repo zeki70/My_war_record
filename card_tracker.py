@@ -725,7 +725,7 @@ def main():
         with res_col2:
             st.selectbox("勝敗 *", ["勝ち", "負け"], key='inp_result', index=0 if 'inp_result' not in st.session_state else ["勝ち", "負け"].index(st.session_state.inp_result))
         with res_col3:
-            st.number_input("決着ターン *", min_value=1, step=1, value=st.session_state.get('inp_finish_turn', 3), placeholder="ターン数を入力", key='inp_finish_turn')
+            st.number_input("決着ターン *", min_value=1, step=1, value=st.session_state.get('inp_finish_turn', 8), placeholder="ターン数を入力", key='inp_finish_turn')
         st.text_area("対戦メモ (任意)", value=st.session_state.get('inp_memo', ""), key='inp_memo')
 
         st.markdown("---")
