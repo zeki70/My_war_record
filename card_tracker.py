@@ -60,6 +60,7 @@ def get_gspread_client():
         return None
 
 # --- データ操作関数 ---
+# --- データ操作関数 ---
 def load_data(spreadsheet_id, worksheet_name):
     client = get_gspread_client()
     if client is None:
@@ -70,54 +71,85 @@ def load_data(spreadsheet_id, worksheet_name):
             elif col == 'finish_turn': empty_df[col] = pd.Series(dtype='Int64')
             else: empty_df[col] = pd.Series(dtype='object')
         return empty_df
+        
     try:
         spreadsheet = client.open_by_key(spreadsheet_id)
         worksheet = spreadsheet.worksheet(worksheet_name)
-        df = get_as_dataframe(worksheet, evaluate_formulas=False, header=0, na_filter=True)
-        if df.empty and worksheet.row_count > 0 and worksheet.row_values(1):
-            header_row = worksheet.row_values(1)
-            df = pd.DataFrame(columns=header_row)
-            expected_header = COLUMNS
-            actual_header_subset = list(df.columns)[:len(expected_header)]
-            if not (actual_header_subset == expected_header or list(df.columns) == expected_header or set(COLUMNS).issubset(set(df.columns))):
-                 st.warning(f"スプレッドシートのヘッダーが期待と異なります。\n期待(一部): {expected_header}\n実際(一部): {actual_header_subset}")
 
+        # ヘッダーチェックと更新ロジック
+        header_updated = False
+        if worksheet.row_count == 0: # シートが完全に空の場合
+            worksheet.update('A1', [COLUMNS], value_input_option='USER_ENTERED')
+            st.info("スプレッドシートにヘッダー行を書き込みました。")
+            header_updated = True
+        else:
+            current_headers = worksheet.row_values(1) # 最初の行を取得
+            # ヘッダーがCOLUMNSと完全に一致しない場合に更新
+            if not current_headers or list(current_headers) != COLUMNS:
+                worksheet.update('A1', [COLUMNS], value_input_option='USER_ENTERED')
+                if not current_headers:
+                     st.info("スプレッドシートにヘッダー行を書き込みました。")
+                else:
+                     st.warning("スプレッドシートのヘッダーを期待される形式に更新しました。")
+                header_updated = True
+        
+        # ヘッダーが更新された可能性も考慮し、データを読み込む
+        # header=0 は get_as_dataframe のデフォルトだが、明示的に指定
+        df = get_as_dataframe(worksheet, evaluate_formulas=False, header=0, na_filter=True)
+
+        # COLUMNS に基づいて DataFrame を整形し、不足列は適切な型で追加
+        # この処理は、get_as_dataframe がヘッダー行を正しく解釈した後に実行される
         temp_df = pd.DataFrame(columns=COLUMNS)
         for col in COLUMNS:
             if col in df.columns:
                 temp_df[col] = df[col]
-            else:
+            else: # dfに列が存在しない場合は、空のSeriesを適切な型で作成
                 if col == 'date': temp_df[col] = pd.Series(dtype='datetime64[ns]')
                 elif col == 'finish_turn': temp_df[col] = pd.Series(dtype='Int64')
                 else: temp_df[col] = pd.Series(dtype='object')
         df = temp_df
-
+        
+        # 型変換
         if 'date' in df.columns:
             df['date'] = pd.to_datetime(df['date'], errors='coerce')
         if 'finish_turn' in df.columns:
             df['finish_turn'] = pd.to_numeric(df['finish_turn'], errors='coerce').astype('Int64')
 
-        string_cols = ['my_deck_type', 'opponent_deck_type', 'my_deck', 'opponent_deck', 'my_class', 'opponent_class',
-                       'season', 'memo', 'first_second', 'result', 'environment', 'format'] # 'format' を追加
+        # 文字列として扱う列の処理 (my_class, opponent_class を含む)
+        string_cols = ['my_deck_type', 'my_class', 'opponent_deck_type', 'opponent_class',
+                       'my_deck', 'opponent_deck', 'season', 'memo',
+                       'first_second', 'result', 'environment', 'format']
         for col in string_cols:
             if col in df.columns:
                 df[col] = df[col].astype(str).fillna('')
-            else:
+            else: # 通常はこのケースは起こりにくいが念のため
                 df[col] = pd.Series(dtype='str').fillna('')
-
+        
+        # 最終的にCOLUMNSの順序と列構成を保証
         df = df.reindex(columns=COLUMNS)
 
     except gspread.exceptions.SpreadsheetNotFound:
         st.error(f"スプレッドシート (ID: {spreadsheet_id}) が見つからないか、アクセス権がありません。共有設定を確認してください。")
-        df = pd.DataFrame(columns=COLUMNS)
+        df = pd.DataFrame(columns=COLUMNS) # 空のDataFrameを返す
+        for col in COLUMNS: # 型情報を付与
+            if col == 'date': df[col] = pd.Series(dtype='datetime64[ns]')
+            elif col == 'finish_turn': df[col] = pd.Series(dtype='Int64')
+            else: df[col] = pd.Series(dtype='object')
     except gspread.exceptions.WorksheetNotFound:
         st.error(f"ワークシート '{worksheet_name}' がスプレッドシート (ID: {spreadsheet_id}) 内に見つかりません。")
-        df = pd.DataFrame(columns=COLUMNS)
+        df = pd.DataFrame(columns=COLUMNS) # 空のDataFrameを返す
+        for col in COLUMNS: # 型情報を付与
+            if col == 'date': df[col] = pd.Series(dtype='datetime64[ns]')
+            elif col == 'finish_turn': df[col] = pd.Series(dtype='Int64')
+            else: df[col] = pd.Series(dtype='object')
     except Exception as e:
         st.error(f"Google Sheetsからのデータ読み込み中に予期せぬエラーが発生しました: {type(e).__name__}: {e}")
-        df = pd.DataFrame(columns=COLUMNS)
+        df = pd.DataFrame(columns=COLUMNS) # 空のDataFrameを返す
+        for col in COLUMNS: # 型情報を付与
+            if col == 'date': df[col] = pd.Series(dtype='datetime64[ns]')
+            elif col == 'finish_turn': df[col] = pd.Series(dtype='Int64')
+            else: df[col] = pd.Series(dtype='object')
     return df
-
 def save_data(df_one_row, spreadsheet_id, worksheet_name):
     client = get_gspread_client()
     if client is None:
