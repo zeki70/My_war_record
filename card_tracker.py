@@ -770,6 +770,91 @@ def main():
         success_placeholder = st.empty()
 
         if st.button("戦績を記録", key='submit_record_button'):
+            # ▼▼▼ ここから不足している可能性のある変数の定義を追加・確認 ▼▼▼
+            final_season = st.session_state.get('inp_season_new', '') if st.session_state.get('inp_season_select') == NEW_ENTRY_LABEL else st.session_state.get('inp_season_select')
+            # NEW_ENTRY_LABEL のまま残らないようにする処理も追加 (シーズン以外も同様)
+            if final_season == NEW_ENTRY_LABEL: final_season = ''
+
+
+            final_my_deck = st.session_state.get('inp_my_deck_new', '') if st.session_state.get('inp_my_deck') == NEW_ENTRY_LABEL else st.session_state.get('inp_my_deck')
+            if final_my_deck == NEW_ENTRY_LABEL: final_my_deck = ''
+
+            final_my_deck_type = st.session_state.get('inp_my_deck_type_new', '') if st.session_state.get('inp_my_deck_type') == NEW_ENTRY_LABEL else st.session_state.get('inp_my_deck_type')
+            if final_my_deck_type == NEW_ENTRY_LABEL: final_my_deck_type = ''
+
+            final_opponent_deck = st.session_state.get('inp_opponent_deck_new', '') if st.session_state.get('inp_opponent_deck') == NEW_ENTRY_LABEL else st.session_state.get('inp_opponent_deck')
+            if final_opponent_deck == NEW_ENTRY_LABEL: final_opponent_deck = ''
+
+            final_opponent_deck_type = st.session_state.get('inp_opponent_deck_type_new', '') if st.session_state.get('inp_opponent_deck_type') == NEW_ENTRY_LABEL else st.session_state.get('inp_opponent_deck_type')
+            if final_opponent_deck_type == NEW_ENTRY_LABEL: final_opponent_deck_type = ''
+
+            final_environment = st.session_state.get('inp_environment_new', '') if st.session_state.get('inp_environment_select') == NEW_ENTRY_LABEL else st.session_state.get('inp_environment_select')
+            if final_environment == NEW_ENTRY_LABEL : final_environment = ''
+
+            final_format = st.session_state.get('inp_format_new', '') if st.session_state.get('inp_format_select') == NEW_ENTRY_LABEL else st.session_state.get('inp_format_select')
+            if final_format == NEW_ENTRY_LABEL: final_format = ''
+
+            # クラス情報の取得 (これは前回修正したものです)
+            final_my_class = st.session_state.get('inp_my_class')
+            final_opponent_class = st.session_state.get('inp_opponent_class')
+
+            # 日付、先攻/後攻、結果などの取得
+            date_val_from_state = st.session_state.get('inp_date')
+            if isinstance(date_val_from_state, datetime): date_val = date_val_from_state.date()
+            elif isinstance(date_val_from_state, type(datetime.today().date())): date_val = date_val_from_state
+            else:
+                try: date_val = pd.to_datetime(date_val_from_state).date()
+                except: date_val = datetime.today().date() # エラー時は今日の日付
+
+            first_second_val = st.session_state.get('inp_first_second')
+            result_val = st.session_state.get('inp_result')
+            finish_turn_val = st.session_state.get('inp_finish_turn')
+            memo_val = st.session_state.get('inp_memo', '')
+            # ▲▲▲ ここまで変数の定義 ▲▲▲
+
+            error_messages = []
+            # シーズンの必須チェック (NEW_ENTRY_LABEL の場合も考慮)
+            if not final_season: # final_season が空文字列の場合
+                 error_messages.append("シーズンを入力または選択してください。")
+            # (他の final_xxx 変数についても同様のチェックを行う)
+            if not final_my_deck: error_messages.append("使用デッキ名を入力または選択してください。")
+            if not final_my_deck_type: error_messages.append("使用デッキの型を入力または選択してください。")
+            if not final_opponent_deck: error_messages.append("相手デッキ名を入力または選択してください。")
+            if not final_opponent_deck_type: error_messages.append("相手デッキの型を入力または選択してください。")
+            if not final_environment: error_messages.append("対戦環境を選択または入力してください。")
+            if not final_format: error_messages.append("フォーマットを選択または入力してください。")
+            
+            # クラスの必須チェック
+            if not final_my_class:
+                error_messages.append("自分のクラスを選択してください。")
+            if not final_opponent_class:
+                 error_messages.append("相手のクラスを選択してください。")
+            
+            if finish_turn_val is None: error_messages.append("決着ターンを入力してください。")
+
+            if error_messages:
+                error_placeholder.error("、".join(error_messages))
+                success_placeholder.empty()
+            else:
+                error_placeholder.empty()
+                new_record_data = {
+                    'season': final_season, 'date': pd.to_datetime(date_val), # ここで final_season, date_val が使われます
+                    'environment': final_environment, 'format': final_format,
+                    'my_deck': final_my_deck, 'my_deck_type': final_my_deck_type,
+                    'my_class': final_my_class,
+                    'opponent_deck': final_opponent_deck, 'opponent_deck_type': final_opponent_deck_type,
+                    'opponent_class': final_opponent_class,
+                    'first_second': first_second_val, 'result': result_val,
+                    'finish_turn': int(finish_turn_val) if finish_turn_val is not None else None,
+                    'memo': memo_val
+                }
+                new_df_row = pd.DataFrame([new_record_data], columns=COLUMNS)
+                if save_data(new_df_row, SPREADSHEET_ID, WORKSHEET_NAME):
+                    success_placeholder.success("戦績を記録しました！")
+                    # ... (リセット処理は変更なし) ...
+                    st.rerun()
+                else:
+                    error_placeholder.error("データの保存に失敗しました。Google Sheetsへの接続を確認してください。")
             # ... (final_season など、既存の値の取得はそのまま) ...
             final_my_class = st.session_state.get('inp_my_class')
             final_opponent_class = st.session_state.get('inp_opponent_class')
