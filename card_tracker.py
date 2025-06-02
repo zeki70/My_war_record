@@ -852,28 +852,35 @@ def main():
                 if save_data(new_df_row, SPREADSHEET_ID, WORKSHEET_NAME):
                     success_placeholder.success("戦績を記録しました！")
                     # ... (リセット処理は変更なし) ...
-                    if 'inp_memo' in st.session_state:       # メモ欄を空にする場合
-                        st.session_state.inp_memo = ""
-                    # 「フォーマット」の新しい値を入力するテキストボックス (inp_format_new) のみクリア
-                    # これにより、inp_format_select で選択した値（新規入力したものも含む）は保持されつつ、
-                    # テキスト入力欄は次回のために空になります。
-                    if 'inp_format_new' in st.session_state:
-                        st.session_state.inp_format_new = ""
-                    
-                    # 同様に、他の _new サフィックスのついた項目もクリアする場合
-                    if 'inp_season_new' in st.session_state:
-                         st.session_state.inp_season_new = ""
-                    if 'inp_environment_new' in st.session_state:
-                         st.session_state.inp_environment_new = ""
-                    # デッキ名やデッキタイプも同様に _new をクリアできます
-                    if 'inp_my_deck_new' in st.session_state:
-                        st.session_state.inp_my_deck_new = ""
-                    if 'inp_my_deck_type_new' in st.session_state:
-                        st.session_state.inp_my_deck_type_new = ""
-                    if 'inp_opponent_deck_new' in st.session_state:
-                        st.session_state.inp_opponent_deck_new = ""
-                    if 'inp_opponent_deck_type_new' in st.session_state:
-                        st.session_state.inp_opponent_deck_type_new = ""
+                    keys_to_reset_after_save = {
+                        # 「フォーマット」はリセットしないので、ここには含めません。
+                        # 'inp_format_select': "ローテーション", # 例えばこのようにするとリセットされる
+                        
+                        # リセットしたい項目と、そのリセット後の値を指定
+                        'inp_first_second': "先攻",  # または st.session_state.inp_first_second の初期選択肢
+                        'inp_result': "勝ち",        # または st.session_state.inp_result の初期選択肢
+                        'inp_finish_turn': 7,      # 以前7に設定されていたデフォルト値
+                        'inp_memo': "",            # メモ欄を空にする
+                        
+                        # 新規入力用のテキストフィールドもクリアする
+                        'inp_season_new': "",
+                        'inp_environment_new': "",
+                        'inp_format_new': "",      # 「フォーマット」のテキスト入力欄はクリア
+                        'inp_my_deck_new': "",
+                        'inp_my_deck_type_new': "",
+                        'inp_opponent_deck_new': "",
+                        'inp_opponent_deck_type_new': ""
+                        # 'inp_my_class_new', 'inp_opponent_class_new' はクラス入力簡略化で削除されたので不要
+                    }
+
+                    for key, value in keys_to_reset_after_save.items():
+                        if key in st.session_state: # キーが存在することを確認してから値を設定
+                            st.session_state[key] = value
+                        # もしキーが存在しない場合に作成もしたいなら以下のようにするが、
+                        # 通常はウィジェット定義時にセッションステートは初期化されるはず
+                        # else:
+                        #     st.session_state[key] = value
+                    # --- ▲▲▲ リセット処理の変更ここまで ▲▲▲ ---
                     st.rerun()
                 else:
                     error_placeholder.error("データの保存に失敗しました。Google Sheetsへの接続を確認してください。")
