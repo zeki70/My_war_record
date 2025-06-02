@@ -783,36 +783,36 @@ def main():
                 else:
                     error_placeholder.error("データの保存に失敗しました。Google Sheetsへの接続を確認してください。")
     
-# --- show_analysis_section と 戦績一覧表示部分は、新しいクラス列を考慮した表示調整が必要になります ---
-# (今回は入力フォームの変更を主としていますが、後続で分析や一覧表示も修正します)
-show_analysis_section(df.copy())
-st.header("戦績一覧")
-if df.empty:
-    st.info("まだ戦績データがありません。")
-else:
-    display_columns = ['date', 'season', 'environment', 'format', 
-                       'my_deck', 'my_deck_type', 'my_class', 
-                       'opponent_deck', 'opponent_deck_type', 'opponent_class', 
-                       'first_second', 'result', 'finish_turn', 'memo'] # クラス列を追加
-    # ... (以降のデータフレーム表示ロジックは既存のものを流用し、新しい列が表示されるようにする) ...
-    cols_to_display_actual = [col for col in display_columns if col in df.columns]
-    df_display = df.copy()
-    if 'date' in df_display.columns:
-        df_display['date'] = pd.to_datetime(df_display['date'], errors='coerce')
-        not_nat_dates = df_display.dropna(subset=['date'])
-        nat_dates = df_display[df_display['date'].isna()]
-        df_display_sorted = pd.concat([not_nat_dates.sort_values(by='date', ascending=False), nat_dates]).reset_index(drop=True)
-        if pd.api.types.is_datetime64_any_dtype(df_display_sorted['date']):
-             df_display_sorted['date'] = df_display_sorted['date'].apply(
-                 lambda x: x.strftime('%Y-%m-%d') if pd.notnull(x) else None)
+    # --- show_analysis_section と 戦績一覧表示部分は、新しいクラス列を考慮した表示調整が必要になります ---
+    # (今回は入力フォームの変更を主としていますが、後続で分析や一覧表示も修正します)
+    show_analysis_section(df.copy())
+    st.header("戦績一覧")
+    if df.empty:
+        st.info("まだ戦績データがありません。")
     else:
-        df_display_sorted = df_display.reset_index(drop=True)
-    st.dataframe(df_display_sorted[cols_to_display_actual]) # ここで新しい列が表示される
-    csv_export = df.to_csv(index=False).encode('utf-8-sig')
-    st.download_button(
-        label="戦績データをCSVでダウンロード", data=csv_export,
-        file_name='game_records_download.csv', mime='text/csv',
-    )
+        display_columns = ['date', 'season', 'environment', 'format', 
+                        'my_deck', 'my_deck_type', 'my_class', 
+                        'opponent_deck', 'opponent_deck_type', 'opponent_class', 
+                        'first_second', 'result', 'finish_turn', 'memo'] # クラス列を追加
+        # ... (以降のデータフレーム表示ロジックは既存のものを流用し、新しい列が表示されるようにする) ...
+        cols_to_display_actual = [col for col in display_columns if col in df.columns]
+        df_display = df.copy()
+        if 'date' in df_display.columns:
+            df_display['date'] = pd.to_datetime(df_display['date'], errors='coerce')
+            not_nat_dates = df_display.dropna(subset=['date'])
+            nat_dates = df_display[df_display['date'].isna()]
+            df_display_sorted = pd.concat([not_nat_dates.sort_values(by='date', ascending=False), nat_dates]).reset_index(drop=True)
+            if pd.api.types.is_datetime64_any_dtype(df_display_sorted['date']):
+                df_display_sorted['date'] = df_display_sorted['date'].apply(
+                    lambda x: x.strftime('%Y-%m-%d') if pd.notnull(x) else None)
+        else:
+            df_display_sorted = df_display.reset_index(drop=True)
+        st.dataframe(df_display_sorted[cols_to_display_actual]) # ここで新しい列が表示される
+        csv_export = df.to_csv(index=False).encode('utf-8-sig')
+        st.download_button(
+            label="戦績データをCSVでダウンロード", data=csv_export,
+            file_name='game_records_download.csv', mime='text/csv',
+        )
 
 if __name__ == '__main__':
     main()
