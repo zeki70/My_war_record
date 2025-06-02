@@ -852,6 +852,28 @@ def main():
                 if save_data(new_df_row, SPREADSHEET_ID, WORKSHEET_NAME):
                     success_placeholder.success("戦績を記録しました！")
                     # ... (リセット処理は変更なし) ...
+                    if 'inp_memo' in st.session_state:       # メモ欄を空にする場合
+                        st.session_state.inp_memo = ""
+                    # 「フォーマット」の新しい値を入力するテキストボックス (inp_format_new) のみクリア
+                    # これにより、inp_format_select で選択した値（新規入力したものも含む）は保持されつつ、
+                    # テキスト入力欄は次回のために空になります。
+                    if 'inp_format_new' in st.session_state:
+                        st.session_state.inp_format_new = ""
+                    
+                    # 同様に、他の _new サフィックスのついた項目もクリアする場合
+                    if 'inp_season_new' in st.session_state:
+                         st.session_state.inp_season_new = ""
+                    if 'inp_environment_new' in st.session_state:
+                         st.session_state.inp_environment_new = ""
+                    # デッキ名やデッキタイプも同様に _new をクリアできます
+                    if 'inp_my_deck_new' in st.session_state:
+                        st.session_state.inp_my_deck_new = ""
+                    if 'inp_my_deck_type_new' in st.session_state:
+                        st.session_state.inp_my_deck_type_new = ""
+                    if 'inp_opponent_deck_new' in st.session_state:
+                        st.session_state.inp_opponent_deck_new = ""
+                    if 'inp_opponent_deck_type_new' in st.session_state:
+                        st.session_state.inp_opponent_deck_type_new = ""
                     st.rerun()
                 else:
                     error_placeholder.error("データの保存に失敗しました。Google Sheetsへの接続を確認してください。")
