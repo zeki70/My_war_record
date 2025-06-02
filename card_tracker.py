@@ -601,6 +601,7 @@ def show_analysis_section(original_df):
         display_general_deck_performance(df_for_analysis)
 # --- Streamlit アプリ本体 (main関数) ---
 def main():
+    PREDEFINED_CLASSES = ["エルフ", "ロイヤル", "ウィッチ", "ドラゴン", "ネクロマンサー", "ヴァンパイア", "ビショップ", "ネメシス"] # 「ナイトメア」を「ネクロマンサー」に統一（またはお好みに合わせて調整）
     st.set_page_config(layout="wide")
     st.title(f"カードゲーム戦績管理アプリ ({SPREADSHEET_NAME_DISPLAY})") # タイトル表示をSPREADSHEET_NAME_DISPLAYに連動
     # st.title("Shadowverse戦績管理") # またはこのように直接指定も可能
@@ -700,10 +701,9 @@ def main():
                 st.text_input("新しい使用デッキの型を入力 *", value=st.session_state.get('inp_my_deck_type_new', ""), key='inp_my_deck_type_new')
 
             # 「自分のクラス」入力ウィジェットを追加
-            my_class_options_input = get_unique_items_with_new_option(df, 'my_class', predefined_options=PREDEFINED_CLASSES)
-            st.selectbox("自分のクラス *", my_class_options_input, key='inp_my_class')
-            if st.session_state.get('inp_my_class') == NEW_ENTRY_LABEL:
-                st.text_input("新しい自分のクラスを入力 *", value=st.session_state.get('inp_my_class_new', ""), key='inp_my_class_new')
+            st.selectbox("自分のクラス *", PREDEFINED_CLASSES, key='inp_my_class',
+                 index=PREDEFINED_CLASSES.index(st.session_state.inp_my_class) if 'inp_my_class' in st.session_state and st.session_state.inp_my_class in PREDEFINED_CLASSES else 0)
+    # inp_my_class_new のテキスト入力は削除
 
         with col2:
             st.subheader("対戦相手のデッキ")
@@ -718,10 +718,8 @@ def main():
                 st.text_input("新しい相手デッキの型を入力 *", value=st.session_state.get('inp_opponent_deck_type_new', ""), key='inp_opponent_deck_type_new')
 
             # 「相手のクラス」入力ウィジェットを追加
-            opponent_class_options_input = get_unique_items_with_new_option(df, 'opponent_class', predefined_options=PREDEFINED_CLASSES)
-            st.selectbox("相手のクラス *", opponent_class_options_input, key='inp_opponent_class')
-            if st.session_state.get('inp_opponent_class') == NEW_ENTRY_LABEL:
-                st.text_input("新しい相手のクラスを入力 *", value=st.session_state.get('inp_opponent_class_new', ""), key='inp_opponent_class_new')
+            st.selectbox("相手のクラス *", PREDEFINED_CLASSES, key='inp_opponent_class',
+                 index=PREDEFINED_CLASSES.index(st.session_state.inp_opponent_class) if 'inp_opponent_class' in st.session_state and st.session_state.inp_opponent_class in PREDEFINED_CLASSES else 0)
 
         st.subheader("対戦結果")
         # res_col1, res_col2, res_col3 を使うか、縦に並べるかはお好みで。以前の形式に戻すなら列を使う。
@@ -731,7 +729,7 @@ def main():
         with res_col2:
             st.selectbox("勝敗 *", ["勝ち", "負け"], key='inp_result', index=0 if 'inp_result' not in st.session_state else ["勝ち", "負け"].index(st.session_state.inp_result))
         with res_col3:
-            st.number_input("決着ターン *", min_value=1, step=1, value=st.session_state.get('inp_finish_turn', 3), placeholder="ターン数を入力", key='inp_finish_turn') # デフォルト値は適宜変更
+            st.number_input("決着ターン *", min_value=1, step=1, value=st.session_state.get('inp_finish_turn', 7), placeholder="ターン数を入力", key='inp_finish_turn') # デフォルト値は適宜変更
         
         st.text_area("対戦メモ (任意)", value=st.session_state.get('inp_memo', ""), key='inp_memo')
 
@@ -741,17 +739,16 @@ def main():
 
         if st.button("戦績を記録", key='submit_record_button'):
             # ... (final_season など、既存の値の取得はそのまま) ...
-            final_my_class = st.session_state.get('inp_my_class_new', '') if st.session_state.get('inp_my_class') == NEW_ENTRY_LABEL else st.session_state.get('inp_my_class')
-            if final_my_class == NEW_ENTRY_LABEL: final_my_class = ''
-            
-            final_opponent_class = st.session_state.get('inp_opponent_class_new', '') if st.session_state.get('inp_opponent_class') == NEW_ENTRY_LABEL else st.session_state.get('inp_opponent_class')
-            if final_opponent_class == NEW_ENTRY_LABEL: final_opponent_class = ''
+            final_my_class = st.session_state.get('inp_my_class')
+            final_opponent_class = st.session_state.get('inp_opponent_class')
 
             # ... (エラーメッセージのチェックにクラスも追加) ...
             error_messages = []
             # ... (既存の必須チェック) ...
-            if not final_my_class or final_my_class == NEW_ENTRY_LABEL: error_messages.append("自分のクラスを入力または選択してください。")
-            if not final_opponent_class or final_opponent_class == NEW_ENTRY_LABEL: error_messages.append("相手のクラスを入力または選択してください。")
+            if not final_my_class:
+                error_messages.append("自分のクラスを選択してください。")
+            if not final_opponent_class:
+                 error_messages.append("相手のクラスを選択してください。")
             # ... (決着ターンのチェックなど) ...
 
             if error_messages:
