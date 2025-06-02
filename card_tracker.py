@@ -887,40 +887,7 @@ def main():
                 new_df_row = pd.DataFrame([new_record_data], columns=COLUMNS)
                 if save_data(new_df_row, SPREADSHEET_ID, WORKSHEET_NAME):
                     success_placeholder.success("戦績を記録しました！")
-                    # --- ▼▼▼ リセット処理 ▼▼▼ ---
-                    
-                    # 常に表示されているウィジェットのキーと、そのリセット後の値を定義
-                    keys_to_reset_always_visible = {
-                        'inp_first_second': "先攻",  # 先攻/後攻を「先攻」にリセット
-                        'inp_result': "勝ち",        # 勝敗を「勝ち」にリセット
-                        'inp_finish_turn': 7,      # 決着ターンを「7」にリセット (この値はお好みで変更してください)
-                        'inp_memo': "",            # ★★★ メモ欄を空にする ★★★
-                        # 「フォーマット」の選択 (inp_format_select) はリセットしないのでここには含めません。
-                        # 他にリセットしたい項目があれば、ここに追加してください。
-                        # 例: 'inp_my_deck': NEW_ENTRY_LABEL, # もしデッキ名もリセットしたい場合
-                    }
-
-                    for key, value in keys_to_reset_always_visible.items():
-                        if key in st.session_state: # キーが存在することを確認してから値を設定
-                            st.session_state[key] = value
-                    
-                    # 条件付きで表示される _new サフィックスのついたキーは、popで削除してクリアします
-                    # これにより、次回描画時に value=st.session_state.get(key, "") が空文字列を参照します
-                    keys_to_pop_for_new_entry = [
-                        'inp_season_new',
-                        'inp_environment_new',
-                        'inp_format_new',          # 「フォーマット」の新しい値入力欄もクリア
-                        'inp_my_deck_new',
-                        'inp_my_deck_type_new',
-                        'inp_opponent_deck_new',
-                        'inp_opponent_deck_type_new'
-                        # 'inp_my_class_new', 'inp_opponent_class_new' はクラス入力簡略化で削除されたので、
-                        # もしこれらがまだコードに残っていれば、このリストに追加してクリアできます。
-                        # (ただし、前回クラス入力は固定選択のみに変更したため、通常は不要です)
-                    ]
-
-                    for key_to_pop in keys_to_pop_for_new_entry:
-                        st.session_state.pop(key_to_pop, None) # キーが存在すれば削除、なければ何もしない
+                   
                     st.toast("これはテストトーストです！") # ★単純なテストメッセージに変更
 
 
