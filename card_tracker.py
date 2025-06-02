@@ -921,6 +921,7 @@ def main():
 
                     for key_to_pop in keys_to_pop_for_new_entry:
                         st.session_state.pop(key_to_pop, None) # キーが存在すれば削除、なければ何もしない
+                    st.write(f"デバッグ: inp_memo の値（rerun直前）= '{st.session_state.get('inp_memo')}'") # デバッグ用
 
                     # --- ▲▲▲ リセット処理ここまで ▲▲▲ ---
                     st.rerun()
