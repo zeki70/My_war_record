@@ -789,7 +789,7 @@ def main():
                     keys_to_reset_explicitly = {
                         'inp_first_second': "先攻",
                         'inp_result': "勝ち",
-                        'inp_finish_turn': 3,
+                        'inp_finish_turn': 8,
                         'inp_memo': "",
                         # 'inp_format_select': format_options_input[0] if format_options_input and format_options_input[0] != NEW_ENTRY_LABEL else NEW_ENTRY_LABEL, # フォーマットもリセットする場合
                         # 'inp_format_new': "",
