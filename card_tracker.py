@@ -851,38 +851,34 @@ def main():
                 new_df_row = pd.DataFrame([new_record_data], columns=COLUMNS)
                 if save_data(new_df_row, SPREADSHEET_ID, WORKSHEET_NAME):
                     success_placeholder.success("戦績を記録しました！")
-                   # --- ▼▼▼ リセット処理の変更 ▼▼▼ ---
+                   # --- ▼▼▼ 修正されたリセット処理 ▼▼▼ ---
                     
-                    # 常に表示されているウィジェットのキーと、そのリセット後の値を定義
-                    keys_to_reset_always_visible = {
-                        'inp_first_second': "先攻",
-                        'inp_result': "勝ち",
-                        'inp_finish_turn': 7,      # 以前7に設定されていたデフォルト値 (適宜変更してください)
-                        'inp_memo': "",            # メモ欄を空にする
-                        # 「フォーマット」の inp_format_select は意図的にリセットしない
-                    }
-
-                    for key, value in keys_to_reset_always_visible.items():
-                        if key in st.session_state: # キーが存在することを確認
-                            st.session_state[key] = value
+                    # 常に表示されているウィジェットのキーとそのリセット後の値を直接属性アクセスで設定
+                    if 'inp_first_second' in st.session_state:
+                        st.session_state.inp_first_second = "先攻"
+                    if 'inp_result' in st.session_state:
+                        st.session_state.inp_result = "勝ち"
+                    if 'inp_finish_turn' in st.session_state:
+                        st.session_state.inp_finish_turn = 7 # デフォルト値
+                    if 'inp_memo' in st.session_state:
+                        st.session_state.inp_memo = ""
                     
-                    # 条件付きで表示される _new サフィックスのついたキーは、popで削除する
-                    # これにより、次回描画時に value=st.session_state.get(key, "") が空文字列を参照する
-                    keys_to_pop_for_new_entry = [
+                    # 条件付きで表示される "_new" サフィックスのついたキーは、delattr を使って削除
+                    keys_to_delete_for_new_entry = [
                         'inp_season_new',
                         'inp_environment_new',
-                        'inp_format_new',          # 「フォーマット」の新しい値入力欄もクリア
+                        'inp_format_new',
                         'inp_my_deck_new',
                         'inp_my_deck_type_new',
                         'inp_opponent_deck_new',
                         'inp_opponent_deck_type_new'
-                        # 'inp_my_class_new', 'inp_opponent_class_new' はクラス入力簡略化で削除されたので不要
                     ]
 
-                    for key_to_pop in keys_to_pop_for_new_entry:
-                        st.session_state.pop(key_to_pop, None) # キーが存在すれば削除、なければ何もしない
+                    for key_to_delete in keys_to_delete_for_new_entry:
+                        if hasattr(st.session_state, key_to_delete): # 属性の存在を確認
+                            delattr(st.session_state, key_to_delete) # 属性スタイルで削除
 
-                    # --- ▲▲▲ リセット処理の変更ここまで ▲▲▲ ---
+                    # --- ▲▲▲ 修正されたリセット処理ここまで ▲▲▲ ---
                     st.rerun()
                 else:
                     error_placeholder.error("データの保存に失敗しました。Google Sheetsへの接続を確認してください。")
