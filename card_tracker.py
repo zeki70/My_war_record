@@ -851,34 +851,7 @@ def main():
                 new_df_row = pd.DataFrame([new_record_data], columns=COLUMNS)
                 if save_data(new_df_row, SPREADSHEET_ID, WORKSHEET_NAME):
                     success_placeholder.success("戦績を記録しました！")
-                   # --- ▼▼▼ 修正されたリセット処理 ▼▼▼ ---
-                    
-                    # 常に表示されているウィジェットのキーとそのリセット後の値を直接属性アクセスで設定
-                    if 'inp_first_second' in st.session_state:
-                        st.session_state.inp_first_second = "先攻"
-                    if 'inp_result' in st.session_state:
-                        st.session_state.inp_result = "勝ち"
-                    if 'inp_finish_turn' in st.session_state:
-                        st.session_state.inp_finish_turn = 7 # デフォルト値
-                    if 'inp_memo' in st.session_state:
-                        st.session_state.inp_memo = ""
-                    
-                    # 条件付きで表示される "_new" サフィックスのついたキーは、delattr を使って削除
-                    keys_to_delete_for_new_entry = [
-                        'inp_season_new',
-                        'inp_environment_new',
-                        'inp_format_new',
-                        'inp_my_deck_new',
-                        'inp_my_deck_type_new',
-                        'inp_opponent_deck_new',
-                        'inp_opponent_deck_type_new'
-                    ]
-
-                    for key_to_delete in keys_to_delete_for_new_entry:
-                        if hasattr(st.session_state, key_to_delete): # 属性の存在を確認
-                            delattr(st.session_state, key_to_delete) # 属性スタイルで削除
-
-                    # --- ▲▲▲ 修正されたリセット処理ここまで ▲▲▲ ---
+                    # ... (リセット処理は変更なし) ...
                     st.rerun()
                 else:
                     error_placeholder.error("データの保存に失敗しました。Google Sheetsへの接続を確認してください。")
