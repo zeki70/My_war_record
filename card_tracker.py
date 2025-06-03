@@ -479,6 +479,84 @@ def display_general_deck_performance(df_to_analyze):
             "後攻時勝率 (%)": lambda x: f"{x:.1f}%" if pd.notnull(x) else "N/A",
         }), use_container_width=True)
     else: st.info("表示する使用デッキのパフォーマンスデータがありません。")
+
+def display_opponent_deck_summary(df_to_analyze):
+    st.subheader("対戦相手デッキ傾向分析") # 新しいセクションのタイトル
+
+    if df_to_analyze.empty:
+        st.info("分析対象のデータがありません。")
+        return
+
+    # 'opponent_deck' 列が存在しない、または全て欠損値の場合は処理をスキップ
+    if 'opponent_deck' not in df_to_analyze.columns or df_to_analyze['opponent_deck'].dropna().empty:
+        st.info("対戦相手のデッキ情報が記録されていません。")
+        return
+
+    # 相手デッキの出現回数を集計 (NaNや空文字列を除外)
+    valid_opponent_decks = df_to_analyze['opponent_deck'].astype(str).replace('', pd.NA).dropna()
+    if valid_opponent_decks.empty:
+        st.info("集計可能な対戦相手のデッキ情報がありません。")
+        return
+        
+    opponent_deck_counts = valid_opponent_decks.value_counts().reset_index()
+    opponent_deck_counts.columns = ['対戦相手デッキ', '遭遇回数']
+    
+    total_games_in_scope = len(df_to_analyze) # 絞り込まれた範囲内の全ゲーム数
+
+    summary_data = []
+    for index, row in opponent_deck_counts.iterrows():
+        opp_deck_name = row['対戦相手デッキ']
+        appearances = row['遭遇回数']
+
+        # value_counts が既に NaN や空文字列を除外しているはずだが、念のため
+        if not opp_deck_name or str(opp_deck_name).lower() == 'nan' or str(opp_deck_name).strip() == "":
+            continue
+
+        games_vs_this_opp = df_to_analyze[df_to_analyze['opponent_deck'] == opp_deck_name]
+        
+        my_wins_vs_opp = len(games_vs_this_opp[games_vs_this_opp['result'] == '勝ち'])
+        my_losses_vs_opp = appearances - my_wins_vs_opp
+        
+        win_rate_vs_opp = (my_wins_vs_opp / appearances * 100) if appearances > 0 else None
+        usage_percentage = (appearances / total_games_in_scope * 100) if total_games_in_scope > 0 else 0
+
+        # 平均決着ターン（対戦相手がこのデッキだった場合、決着ターン0は除外）
+        avg_finish_turn_vs_opp = None
+        if 'finish_turn' in games_vs_this_opp.columns:
+            valid_finish_turns_series_vs_opp = games_vs_this_opp['finish_turn'].dropna().astype(float)
+            valid_finish_turns_vs_opp = valid_finish_turns_series_vs_opp[valid_finish_turns_series_vs_opp > 0]
+            if not valid_finish_turns_vs_opp.empty:
+                avg_finish_turn_vs_opp = valid_finish_turns_vs_opp.mean()
+        
+        summary_data.append({
+            "相手デッキ": opp_deck_name,
+            "遭遇回数": appearances,
+            "遭遇率 (%)": usage_percentage,
+            "自分勝利数": my_wins_vs_opp,
+            "自分敗北数": my_losses_vs_opp,
+            "自分の勝率 (%)": win_rate_vs_opp,
+            "平均決着ターン": avg_finish_turn_vs_opp
+        })
+
+    if not summary_data:
+        st.info("集計可能な対戦相手のデッキ情報がありません。")
+        return
+
+    summary_df = pd.DataFrame(summary_data)
+    # 遭遇回数が多い順、次に自分の勝率が高い順でソート（任意）
+    summary_df = summary_df.sort_values(by=["遭遇回数", "自分の勝率 (%)"], ascending=[False, False]).reset_index(drop=True)
+
+    display_cols = ["相手デッキ", "遭遇回数", "遭遇率 (%)", "自分勝利数", "自分敗北数", "自分の勝率 (%)", "平均決着ターン"]
+    
+    # 表示する列が存在するか確認
+    actual_display_cols = [col for col in display_cols if col in summary_df.columns]
+
+    st.dataframe(summary_df[actual_display_cols].style.format({
+        "遭遇率 (%)": "{:.1f}%",
+        "自分の勝率 (%)": lambda x: f"{x:.1f}%" if pd.notnull(x) else "N/A",
+        "平均決着ターン": lambda x: f"{x:.1f} T" if pd.notnull(x) else "N/A",
+    }), use_container_width=True)
+
 def show_analysis_section(original_df):
     st.header("📊 戦績分析")
     if original_df.empty:
@@ -788,6 +866,9 @@ def show_analysis_section(original_df):
         else: st.info(f"「{focus_deck_display_name}」使用時のメモ付きの記録は、現在の絞り込み条件ではありません。") # 文言変更
     else:
         display_general_deck_performance(df_for_analysis)
+
+            # display_general_deck_performance(df_for_analysis) # ★変更前：自分の使用デッキ概要を表示
+        display_opponent_deck_summary(df_for_analysis)   # ★変更後：相手デッキ傾向分析を表示
 # --- Streamlit アプリ本体 (main関数) ---
 def main():
     PREDEFINED_CLASSES = ["エルフ", "ロイヤル", "ウィッチ", "ドラゴン", "ナイトメア", "ビショップ", "ネメシス"] # 「ナイトメア」を「ネクロマンサー」に統一（またはお好みに合わせて調整）
