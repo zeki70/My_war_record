@@ -6,6 +6,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from gspread_dataframe import get_as_dataframe
 from streamlit.errors import StreamlitAPIException
+from streamlit_cookies_manager import EncryptedCookieManager # ★インポート
 
 # --- 定数定義 ---
 SPREADSHEET_NAME_DISPLAY = "Shadowverse戦績管理" # 変更
@@ -28,6 +29,28 @@ def get_app_password():
         st.warning("アプリケーションパスワードがSecretsに設定されていません。ローカルテスト用に 'test_password' を使用します。デプロイ時には必ずSecretsを設定してください。")
         return "test_password"
 CORRECT_PASSWORD = get_app_password()
+
+# ★★★ ここにクッキーマネージャの初期化コードを配置 ★★★
+# st.secrets から暗号化キーを取得 (事前にStreamlit CloudのSecretsに設定してください)
+# 例: [app_credentials]
+#      cookie_encryption_key = "あなたの生成した秘密のキー"
+cookie_encryption_key = st.secrets.get("app_credentials", {}).get("cookie_encryption_key", "FALLBACK_KEY_CHANGE_THIS_NOW_123!") # Secretsにキーがない場合のフォールバック(非推奨)
+if cookie_encryption_key == "FALLBACK_KEY_CHANGE_THIS_NOW_123!":
+    st.warning("クッキー暗号化キーがデフォルトのフォールバック値です。必ずSecretsで 'cookie_encryption_key' を設定してください。")
+
+cookies = EncryptedCookieManager(
+    password=cookie_encryption_key, # Secretsから取得したキーを使用
+    # prefix="my_app_cookie_", # 必要に応じてプレフィックスを設定
+    # path="/",                 # 必要に応じてパスを設定
+)
+if not cookies.ready():
+    # cookies.ready() は、クッキーがブラウザからロードされるのを待つためのものです。
+    # これが False を返す場合、クッキー操作の準備ができていない可能性があります。
+    # st.stop() を呼ぶとアプリが停止するので、状況に応じてエラー表示やリトライを検討してもよいですが、
+    # 通常はすぐに True になるはずです。
+    st.error("クッキーマネージャの準備ができませんでした。ページを再読み込みしてみてください。")
+    st.stop()
+# ★★★ 初期化コードここまで ★★★
 
 # --- Google Sheets 連携 ---
 SCOPES = [
@@ -714,7 +737,7 @@ def main():
     if not st.session_state.authenticated: # まだst.session_stateで認証されていなければ
         try:
             stored_password_from_cookie = cookies.get('auth_password') # クッキーから保存されたパスワードを取得
-            if stored_password_from_cookie and stored_password_from_cookie == CORRECT_PASSWORD:
+            if stored_password_from_cookie and stored_password_fro  m_cookie == CORRECT_PASSWORD:
                 st.session_state.authenticated = True
                 # 自動ログイン成功時は st.rerun() を呼ばない方がスムーズな場合がある
                 # st.rerun() # 必要に応じて呼び出す
