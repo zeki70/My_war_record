@@ -857,7 +857,6 @@ def main():
         # 現在選択されているシーズンとクラスを後の処理で使うために取得
         current_selected_season_input = st.session_state.get('inp_season_select')
         
-        PREDEFINED_CLASSES = ["エルフ", "ロイヤル", "ウィッチ", "ドラゴン", "ナイトメア", "ビショップ", "ネメシス"]
 
         col1, col2 = st.columns(2)
         with col1:
@@ -1008,29 +1007,34 @@ def main():
                     
                     # 毎回リセットしたい項目のみをここに定義します
                     # (例: 勝敗、決着ターン、メモなど)
-                    keys_to_reset_always_visible = {
-                        'inp_first_second': "先攻",  # または st.session_state.inp_first_second の初期選択肢
-                        'inp_result': "勝ち",        # または st.session_state.inp_result の初期選択肢
-                        'inp_finish_turn': 7,      # 決着ターンのデフォルト値 (現在のコードでは7のようです)
-                        'inp_memo': "",            # メモ欄を空にする
+                    #keys_to_reset_always_visible = {
+                    #    'inp_first_second': "先攻",  # または st.session_state.inp_first_second の初期選択肢
+                    #    'inp_result': "勝ち",        # または st.session_state.inp_result の初期選択肢
+                    #    'inp_finish_turn': 7,      # 決着ターンのデフォルト値 (現在のコードでは7のようです)
+                    #    'inp_memo': "",            # メモ欄を空にする
                         
                         # デッキ情報も毎回リセットする場合 (NEW_ENTRY_LABELに戻すなど)
-                        'inp_my_deck': NEW_ENTRY_LABEL,
-                        'inp_my_deck_type': NEW_ENTRY_LABEL,
-                        'inp_opponent_deck': NEW_ENTRY_LABEL,
-                        'inp_opponent_deck_type': NEW_ENTRY_LABEL,
+                    #    'inp_my_deck': NEW_ENTRY_LABEL,
+                    #    'inp_my_deck_type': NEW_ENTRY_LABEL,
+                    #    'inp_opponent_deck': NEW_ENTRY_LABEL,
+                    #    'inp_opponent_deck_type': NEW_ENTRY_LABEL,
                         # クラス選択 (inp_my_class, inp_opponent_class) は、
                         # PREDEFINED_CLASSES の最初の値に戻すか、保持するか選択できます。
                         # ここでは保持する（リセット対象に含めない）想定です。
                         # もしクラスもリセットしたい場合は、以下のように追加します。
                         # 'inp_my_class': PREDEFINED_CLASSES[0],
                         # 'inp_opponent_class': PREDEFINED_CLASSES[0],
-                    }
+                    #}
 
-                    for key, value in keys_to_reset_always_visible.items():
-                        if key in st.session_state: # キーが存在することを確認してから値を設定
-                            st.session_state[key] = value
-                    
+                    #for key, value in keys_to_reset_always_visible.items():
+                    #    if key in st.session_state: # キーが存在することを確認してから値を設定
+                    #        st.session_state[key] = value
+                    if 'inp_memo' in st.session_state:
+                        try:
+                            st.session_state.inp_memo = ""
+                            st.toast("inp_memo をリセットしました。") # 成功したらトースト表示
+                        except Exception as e_memo:
+                            st.error(f"inp_memoのリセットでエラー: {e_memo}")
                     # 条件付きで表示される _new サフィックスのついたキーは、popで削除してクリアします
                     # これにより、次回描画時に value=st.session_state.get(key, "") が空文字列を参照します
                     keys_to_pop_for_new_entry = [
