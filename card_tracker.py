@@ -737,7 +737,7 @@ def main():
     if not st.session_state.authenticated: # まだst.session_stateで認証されていなければ
         try:
             stored_password_from_cookie = cookies.get('auth_password') # クッキーから保存されたパスワードを取得
-            if stored_password_from_cookie and stored_password_fro  m_cookie == CORRECT_PASSWORD:
+            if stored_password_from_cookie and stored_password_from_cookie == CORRECT_PASSWORD:
                 st.session_state.authenticated = True
                 # 自動ログイン成功時は st.rerun() を呼ばない方がスムーズな場合がある
                 # st.rerun() # 必要に応じて呼び出す
