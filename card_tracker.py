@@ -706,8 +706,23 @@ def main():
         st.code("https://docs.google.com/spreadsheets/d/【この部分がIDです】/edit")
         st.stop()
 
+    # --- ▼▼▼ 認証処理の変更 ▼▼▼ ---
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
+
+    # ★追加：アプリ起動時にクッキーを確認し、自動ログインを試みる
+    if not st.session_state.authenticated: # まだst.session_stateで認証されていなければ
+        try:
+            stored_password_from_cookie = cookies.get('auth_password') # クッキーから保存されたパスワードを取得
+            if stored_password_from_cookie and stored_password_from_cookie == CORRECT_PASSWORD:
+                st.session_state.authenticated = True
+                # 自動ログイン成功時は st.rerun() を呼ばない方がスムーズな場合がある
+                # st.rerun() # 必要に応じて呼び出す
+        except Exception as e:
+            # クッキーのデコードエラーやその他の問題が発生した場合のフォールバック
+            st.warning(f"クッキーの読み取り中にエラーが発生しました: {e}")
+            pass # ログインフォームに進む
+
     if not st.session_state.authenticated:
         st.title("アプリへのログイン")
         login_col1, login_col2, login_col3 = st.columns([1,1,1])
@@ -719,9 +734,24 @@ def main():
                 if login_button:
                     if password_input == CORRECT_PASSWORD:
                         st.session_state.authenticated = True
+                        # ★追加：ログイン成功時にパスワードをクッキーに保存
+                        cookies['auth_password'] = CORRECT_PASSWORD
+                        # クッキーの有効期限を設定（例: 365日）
+                        # cookies.set('auth_password', CORRECT_PASSWORD, expires_at=datetime.now() + timedelta(days=365))
+                        # ↑ timedelta を使う場合は from datetime import timedelta が必要
+                        # EncryptedCookieManager では set 時に expires_at を直接は指定できないようです。
+                        # CookieManager の save メソッドでグローバルな有効期限を設定するか、
+                        # ライブラリのドキュメントで詳細な有効期限設定方法を確認する必要があります。
+                        # ここでは、ライブラリのデフォルトの有効期限（またはブラウザセッション）に依存します。
+                        # より長期間の保持のためには、CookieManager の設定を調べるか、
+                        # 単純にキーが存在し、CORRECT_PASSWORDと一致するかどうかで判断します。
+                        # (EncryptedCookieManagerのデフォルトでは永続的なクッキーになることが多いです)
+                        cookies.save() # 変更をクッキーに保存
                         st.rerun()
                     else:
                         st.error("パスワードが正しくありません。")
+        st.stop()
+    # --- ▲▲▲ 認証処理の変更ここまで ▲▲▲ ---
         st.stop()
 
     df = load_data(SPREADSHEET_ID, WORKSHEET_NAME)

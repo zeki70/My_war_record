@@ -5,3 +5,4 @@ gspread-dataframe
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
+streamlit-cookies-manager
