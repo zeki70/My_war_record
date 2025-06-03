@@ -8,6 +8,8 @@ from gspread_dataframe import get_as_dataframe
 from streamlit.errors import StreamlitAPIException
 from streamlit_cookies_manager import EncryptedCookieManager # ★インポート
 
+st.set_page_config(layout="wide")
+
 # --- 定数定義 ---
 SPREADSHEET_NAME_DISPLAY = "Shadowverse戦績管理" # 変更
 SPREADSHEET_ID = st.secrets["gcp_service_account"]["SPREADSHEET_ID"]
@@ -719,7 +721,7 @@ def show_analysis_section(original_df):
 # --- Streamlit アプリ本体 (main関数) ---
 def main():
     PREDEFINED_CLASSES = ["エルフ", "ロイヤル", "ウィッチ", "ドラゴン", "ナイトメア", "ビショップ", "ネメシス"] # 「ナイトメア」を「ネクロマンサー」に統一（またはお好みに合わせて調整）
-    st.set_page_config(layout="wide")
+
     st.title(f"カードゲーム戦績管理アプリ ({SPREADSHEET_NAME_DISPLAY})") # タイトル表示をSPREADSHEET_NAME_DISPLAYに連動
     # st.title("Shadowverse戦績管理") # またはこのように直接指定も可能
 
