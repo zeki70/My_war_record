@@ -467,8 +467,11 @@ def show_analysis_section(original_df):
         win_rate_for_focus_deck = (total_wins_for_focus_deck / total_appearances * 100) if total_appearances > 0 else 0.0
 
         win_finish_turns = []
-        if not wins_when_focus_is_my_deck_df.empty:
-            win_finish_turns.extend(wins_when_focus_is_my_deck_df['finish_turn'].dropna().tolist())
+        # ▼▼▼ 修正箇所 ▼▼▼
+        if not wins_when_focus_is_my_deck_df.empty and 'finish_turn' in wins_when_focus_is_my_deck_df.columns:
+            valid_turns = wins_when_focus_is_my_deck_df['finish_turn'].dropna().astype(float) # astype(float) を追加して比較できるようにする
+            win_finish_turns.extend(valid_turns[valid_turns > 0].tolist())
+        # ▲▲▲ 修正ここまで ▲▲▲
         avg_win_finish_turn_val = pd.Series(win_finish_turns).mean() if win_finish_turns else None
 
         focus_first_my = focus_as_my_deck_games[focus_as_my_deck_games['first_second'] == '先攻']
@@ -575,7 +578,17 @@ def show_analysis_section(original_df):
             case1_losses_df = case1_games[case1_games['result'] == '負け']
             focus_deck_wins_count += len(case1_wins_df)
             focus_deck_win_turns_vs_opp.extend(case1_wins_df['finish_turn'].dropna().tolist())
+            # ▼▼▼ 修正箇所 ▼▼▼
+            if not case1_wins_df.empty and 'finish_turn' in case1_wins_df.columns:
+                valid_win_turns = case1_wins_df['finish_turn'].dropna().astype(float)
+                focus_deck_win_turns_vs_opp.extend(valid_win_turns[valid_win_turns > 0].tolist())
+            # ▲▲▲ 修正ここまで ▲▲▲
             focus_deck_loss_turns_vs_opp.extend(case1_losses_df['finish_turn'].dropna().tolist())
+            # ▼▼▼ 修正箇所 ▼▼▼
+            if not case1_losses_df.empty and 'finish_turn' in case1_losses_df.columns:
+                valid_loss_turns = case1_losses_df['finish_turn'].dropna().astype(float)
+                focus_deck_loss_turns_vs_opp.extend(valid_loss_turns[valid_loss_turns > 0].tolist())
+            # ▲▲▲ 修正ここまで ▲▲▲
 
             c1_fd_first = case1_games[case1_games['first_second'] == '先攻']
             fd_vs_opp_first_games_count += len(c1_fd_first)
@@ -614,7 +627,17 @@ def show_analysis_section(original_df):
 
                 focus_losses_agg1_df = case1_agg_games_total[case1_agg_games_total['result'] == '負け']
                 all_win_turns_agg = focus_wins_agg1_df['finish_turn'].dropna().tolist()
+                # ▼▼▼ 修正箇所 ▼▼▼
+                if not focus_wins_agg1_df.empty and 'finish_turn' in focus_wins_agg1_df.columns:
+                    valid_all_win_turns = focus_wins_agg1_df['finish_turn'].dropna().astype(float)
+                    all_win_turns_agg.extend(valid_all_win_turns[valid_all_win_turns > 0].tolist())
+                # ▲▲▲ 修正ここまで ▲▲▲
                 all_loss_turns_agg = focus_losses_agg1_df['finish_turn'].dropna().tolist()
+                # ▼▼▼ 修正箇所 ▼▼▼
+                if not focus_losses_agg1_df.empty and 'finish_turn' in focus_losses_agg1_df.columns:
+                    valid_all_loss_turns = focus_losses_agg1_df['finish_turn'].dropna().astype(float)
+                    all_loss_turns_agg.extend(valid_all_loss_turns[valid_all_loss_turns > 0].tolist())
+                # ▲▲▲ 修正ここまで ▲▲▲
 
                 avg_win_turn_agg = pd.Series(all_win_turns_agg).mean() if all_win_turns_agg else None
                 avg_loss_turn_agg = pd.Series(all_loss_turns_agg).mean() if all_loss_turns_agg else None
@@ -819,7 +842,7 @@ def main():
         with res_col2:
             st.selectbox("勝敗 *", ["勝ち", "負け"], key='inp_result', index=0 if 'inp_result' not in st.session_state else ["勝ち", "負け"].index(st.session_state.inp_result))
         with res_col3:
-            st.number_input("決着ターン *", min_value=1, step=1, value=st.session_state.get('inp_finish_turn', 7), placeholder="ターン数を入力", key='inp_finish_turn') # デフォルト値は適宜変更
+            st.number_input("決着ターン *", min_value=0, step=1, value=st.session_state.get('inp_finish_turn', 7), placeholder="ターン数を入力", key='inp_finish_turn',help="0はリタイア") # デフォルト値は適宜変更
         
         st.text_area("対戦メモ (任意)", value=st.session_state.get('inp_memo', ""), key='inp_memo')
 
