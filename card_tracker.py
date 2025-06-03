@@ -485,6 +485,22 @@ def show_analysis_section(original_df):
         st.info("まだ分析できる戦績データがありません。")
         return
     st.subheader("絞り込み条件")
+    # --- ▼▼▼ 「フォーマットで絞り込み」の初期値を設定 ▼▼▼ ---
+    # まず、利用可能なフォーマットの選択肢リストを作成（SELECT_PLACEHOLDERなし）
+    available_formats_in_data = sorted([
+        f for f in original_df['format'].astype(str).replace('', pd.NA).dropna().unique() 
+        if f and f.lower() != 'nan'
+    ])
+
+    if 'ana_format_filter' not in st.session_state: # セッションステートにキーがまだ存在しない場合のみ初期値を設定
+        if "ローテーション" in available_formats_in_data:
+            st.session_state.ana_format_filter = ["ローテーション"]
+        else:
+            # "ローテーション" がデータ内に存在しない場合は、何も選択しない (空リスト)
+            # または、もし他のデフォルト挙動が必要ならここで設定 (例: available_formats_in_data[0] など)
+            st.session_state.ana_format_filter = [] 
+    # --- ▲▲▲ 初期値設定ここまで ▲▲▲ ---
+
     all_seasons = [SELECT_PLACEHOLDER] + sorted([s for s in original_df['season'].astype(str).replace('', pd.NA).dropna().unique() if s and s.lower() != 'nan'])
     selected_season_for_analysis = st.selectbox("シーズンで絞り込み (任意):", options=all_seasons, key='ana_season_filter')
 
