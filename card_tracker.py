@@ -981,7 +981,13 @@ def main():
         # ▼▼▼ この部分で必要な変数を定義します ▼▼▼
         current_selected_season_input = st.session_state.get('inp_season_select')
         current_selected_format_input = st.session_state.get('inp_format_select') # ★この行が重要です★
+        # ▼▼▼ 選択されたフォーマットを取得し、「2Pick」かどうかを判断 ▼▼▼
+        current_selected_format_value = st.session_state.get('inp_format_select')
+        if current_selected_format_value == NEW_ENTRY_LABEL: # 新規入力の場合も考慮
+            current_selected_format_value = st.session_state.get('inp_format_new', '')
         
+        is_2pick_format = (current_selected_format_value == "2Pick")
+        # ▲▲▲ ここまで追加 ▲▲▲
 
         col1, col2 = st.columns(2)
         with col1:
@@ -993,18 +999,21 @@ def main():
                          on_change=on_my_class_select_change_input_form) # on_change追加
             current_my_class_input = st.session_state.get('inp_my_class')
 
-            # 2. 自分のクラスとシーズンに基づいてデッキ名を選択
-            my_deck_name_options_input = get_decks_for_filter_conditions_input(df, current_selected_season_input, current_my_class_input, current_selected_format_input) # ★ 引数にフォーマット追加
-            st.selectbox("使用デッキ *", my_deck_name_options_input, key='inp_my_deck', on_change=on_my_deck_select_change_input_form)
-            if st.session_state.get('inp_my_deck') == NEW_ENTRY_LABEL:
-                st.text_input("新しい使用デッキ名を入力 *", value=st.session_state.get('inp_my_deck_new', ""), key='inp_my_deck_new')
+              # ▼▼▼ 「2Pick」の場合、デッキ名と型選択をdisabledにする ▼▼▼
+            my_deck_name_options_input = get_decks_for_filter_conditions_input(df, current_selected_season_input, current_my_class_input, current_selected_format_value)
+            st.selectbox("使用デッキ *", my_deck_name_options_input, key='inp_my_deck', 
+                         on_change=on_my_deck_select_change_input_form, 
+                         disabled=is_2pick_format) # disabled追加
+            if st.session_state.get('inp_my_deck') == NEW_ENTRY_LABEL and not is_2pick_format: # 表示条件追加
+                st.text_input("新しい使用デッキ名を入力 *", value=st.session_state.get('inp_my_deck_new', ""), key='inp_my_deck_new', disabled=is_2pick_format) # disabled追加
             current_my_deck_name_input = st.session_state.get('inp_my_deck')
 
-            # 3. 自分のクラス、シーズン、デッキ名に基づいてデッキタイプを選択
-            my_deck_type_options_input = get_types_for_filter_conditions_input(df, current_selected_season_input, current_my_class_input, current_my_deck_name_input, current_selected_format_input) # ★ 引数にフォーマット追加
-            st.selectbox("使用デッキの型 *", my_deck_type_options_input, key='inp_my_deck_type')
-            if st.session_state.get('inp_my_deck_type') == NEW_ENTRY_LABEL:
-                st.text_input("新しい使用デッキの型を入力 *", value=st.session_state.get('inp_my_deck_type_new', ""), key='inp_my_deck_type_new')
+            my_deck_type_options_input = get_types_for_filter_conditions_input(df, current_selected_season_input, current_my_class_input, current_my_deck_name_input, current_selected_format_value)
+            st.selectbox("使用デッキの型 *", my_deck_type_options_input, key='inp_my_deck_type', 
+                         disabled=is_2pick_format) # disabled追加
+            if st.session_state.get('inp_my_deck_type') == NEW_ENTRY_LABEL and not is_2pick_format: # 表示条件追加
+                st.text_input("新しい使用デッキの型を入力 *", value=st.session_state.get('inp_my_deck_type_new', ""), key='inp_my_deck_type_new', disabled=is_2pick_format) # disabled追加
+            # ▲▲▲ 修正ここまで ▲▲▲
 
         with col2:
             st.subheader("対戦相手のデッキ")
@@ -1015,18 +1024,21 @@ def main():
                          on_change=on_opponent_class_select_change_input_form) # on_change追加
             current_opponent_class_input = st.session_state.get('inp_opponent_class')
             
-            # 2. 相手のクラスとシーズンに基づいてデッキ名を選択
-            opponent_deck_name_options_input = get_decks_for_filter_conditions_input(df, current_selected_season_input, current_opponent_class_input, current_selected_format_input) # ★ 引数にフォーマット追加
-            st.selectbox("相手デッキ *", opponent_deck_name_options_input, key='inp_opponent_deck', on_change=on_opponent_deck_select_change_input_form)
-            if st.session_state.get('inp_opponent_deck') == NEW_ENTRY_LABEL:
-                st.text_input("新しい相手デッキ名を入力 *", value=st.session_state.get('inp_opponent_deck_new', ""), key='inp_opponent_deck_new')
+            # ▼▼▼ 「2Pick」の場合、デッキ名と型選択をdisabledにする ▼▼▼
+            opponent_deck_name_options_input = get_decks_for_filter_conditions_input(df, current_selected_season_input, current_opponent_class_input, current_selected_format_value)
+            st.selectbox("相手デッキ *", opponent_deck_name_options_input, key='inp_opponent_deck', 
+                         on_change=on_opponent_deck_select_change_input_form, 
+                         disabled=is_2pick_format) # disabled追加
+            if st.session_state.get('inp_opponent_deck') == NEW_ENTRY_LABEL and not is_2pick_format: # 表示条件追加
+                st.text_input("新しい相手デッキ名を入力 *", value=st.session_state.get('inp_opponent_deck_new', ""), key='inp_opponent_deck_new', disabled=is_2pick_format) # disabled追加
             current_opponent_deck_name_input = st.session_state.get('inp_opponent_deck')
 
-            # 3. 相手のクラス、シーズン、デッキ名に基づいてデッキタイプを選択
-            opponent_deck_type_options_input = get_types_for_filter_conditions_input(df, current_selected_season_input, current_opponent_class_input, current_opponent_deck_name_input, current_selected_format_input) # ★ 引数にフォーマット追加
-            st.selectbox("相手デッキの型 *", opponent_deck_type_options_input, key='inp_opponent_deck_type')
-            if st.session_state.get('inp_opponent_deck_type') == NEW_ENTRY_LABEL:
-                st.text_input("新しい相手デッキの型を入力 *", value=st.session_state.get('inp_opponent_deck_type_new', ""), key='inp_opponent_deck_type_new')
+            opponent_deck_type_options_input = get_types_for_filter_conditions_input(df, current_selected_season_input, current_opponent_class_input, current_opponent_deck_name_input, current_selected_format_value)
+            st.selectbox("相手デッキの型 *", opponent_deck_type_options_input, key='inp_opponent_deck_type', 
+                         disabled=is_2pick_format) # disabled追加
+            if st.session_state.get('inp_opponent_deck_type') == NEW_ENTRY_LABEL and not is_2pick_format: # 表示条件追加
+                st.text_input("新しい相手デッキの型を入力 *", value=st.session_state.get('inp_opponent_deck_type_new', ""), key='inp_opponent_deck_type_new', disabled=is_2pick_format) # disabled追加
+            # ▲▲▲ 修正ここまで ▲▲▲
         
         # ... (対戦結果、メモ、記録ボタン、エラー/成功メッセージ表示のロジックは変更なし) ...
 
@@ -1071,6 +1083,26 @@ def main():
             final_format = st.session_state.get('inp_format_new', '') if st.session_state.get('inp_format_select') == NEW_ENTRY_LABEL else st.session_state.get('inp_format_select')
             if final_format == NEW_ENTRY_LABEL: final_format = ''
 
+            # ▼▼▼ 「2Pick」かどうかの判定（記録時）▼▼▼
+            is_2pick_submit_time = (final_format == "2Pick")
+            # ▲▲▲ ここまで追加 ▲▲▲
+
+            if is_2pick_submit_time:
+                final_my_deck = "2Pickデッキ"  # 固定値
+                final_my_deck_type = "2Pick" # 固定値 (または空欄 "")
+                final_opponent_deck = "2Pickデッキ" # 固定値
+                final_opponent_deck_type = "2Pick"  # 固定値 (または空欄 "")
+            else:
+                final_my_deck = st.session_state.get('inp_my_deck_new', '') if st.session_state.get('inp_my_deck') == NEW_ENTRY_LABEL else st.session_state.get('inp_my_deck')
+                if final_my_deck == NEW_ENTRY_LABEL: final_my_deck = ''
+                final_my_deck_type = st.session_state.get('inp_my_deck_type_new', '') if st.session_state.get('inp_my_deck_type') == NEW_ENTRY_LABEL else st.session_state.get('inp_my_deck_type')
+                if final_my_deck_type == NEW_ENTRY_LABEL: final_my_deck_type = ''
+                final_opponent_deck = st.session_state.get('inp_opponent_deck_new', '') if st.session_state.get('inp_opponent_deck') == NEW_ENTRY_LABEL else st.session_state.get('inp_opponent_deck')
+                if final_opponent_deck == NEW_ENTRY_LABEL: final_opponent_deck = ''
+                final_opponent_deck_type = st.session_state.get('inp_opponent_deck_type_new', '') if st.session_state.get('inp_opponent_deck_type') == NEW_ENTRY_LABEL else st.session_state.get('inp_opponent_deck_type')
+                if final_opponent_deck_type == NEW_ENTRY_LABEL: final_opponent_deck_type = ''
+
+
             # クラス情報の取得 (これは前回修正したものです)
             final_my_class = st.session_state.get('inp_my_class')
             final_opponent_class = st.session_state.get('inp_opponent_class')
@@ -1090,22 +1122,20 @@ def main():
             # ▲▲▲ ここまで変数の定義 ▲▲▲
 
             error_messages = []
-            # シーズンの必須チェック (NEW_ENTRY_LABEL の場合も考慮)
-            if not final_season: # final_season が空文字列の場合
-                 error_messages.append("シーズンを入力または選択してください。")
-            # (他の final_xxx 変数についても同様のチェックを行う)
-            if not final_my_deck: error_messages.append("使用デッキ名を入力または選択してください。")
-            if not final_my_deck_type: error_messages.append("使用デッキの型を入力または選択してください。")
-            if not final_opponent_deck: error_messages.append("相手デッキ名を入力または選択してください。")
-            if not final_opponent_deck_type: error_messages.append("相手デッキの型を入力または選択してください。")
+            if not final_season: error_messages.append("シーズンを入力または選択してください。")
             if not final_environment: error_messages.append("対戦環境を選択または入力してください。")
             if not final_format: error_messages.append("フォーマットを選択または入力してください。")
             
-            # クラスの必須チェック
-            if not final_my_class:
-                error_messages.append("自分のクラスを選択してください。")
-            if not final_opponent_class:
-                 error_messages.append("相手のクラスを選択してください。")
+            if not final_my_class: error_messages.append("自分のクラスを選択してください。")
+            if not final_opponent_class: error_messages.append("相手のクラスを選択してください。")
+
+            # ▼▼▼ デッキ名・型の必須チェックを「2Pick」以外の場合のみに限定 ▼▼▼
+            if not is_2pick_submit_time:
+                if not final_my_deck: error_messages.append("使用デッキ名を入力または選択してください。")
+                if not final_my_deck_type: error_messages.append("使用デッキの型を入力または選択してください。")
+                if not final_opponent_deck: error_messages.append("相手デッキ名を入力または選択してください。")
+                if not final_opponent_deck_type: error_messages.append("相手デッキの型を入力または選択してください。")
+            # ▲▲▲ 修正ここまで ▲▲▲
             
             if finish_turn_val is None: error_messages.append("決着ターンを入力してください。")
 
