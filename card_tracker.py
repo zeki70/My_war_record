@@ -1021,7 +1021,7 @@ def main():
             current_opponent_deck_name_input = st.session_state.get('inp_opponent_deck')
 
             # 3. 相手のクラス、シーズン、デッキ名に基づいてデッキタイプを選択
-           opponent_deck_type_options_input = get_types_for_filter_conditions_input(df, current_selected_season_input, current_opponent_class_input, current_opponent_deck_name_input, current_selected_format_input) # ★ 引数にフォーマット追加
+            opponent_deck_type_options_input = get_types_for_filter_conditions_input(df, current_selected_season_input, current_opponent_class_input, current_opponent_deck_name_input, current_selected_format_input) # ★ 引数にフォーマット追加
             st.selectbox("相手デッキの型 *", opponent_deck_type_options_input, key='inp_opponent_deck_type')
             if st.session_state.get('inp_opponent_deck_type') == NEW_ENTRY_LABEL:
                 st.text_input("新しい相手デッキの型を入力 *", value=st.session_state.get('inp_opponent_deck_type_new', ""), key='inp_opponent_deck_type_new')
