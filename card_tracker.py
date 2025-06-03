@@ -797,7 +797,7 @@ def main():
             current_opponent_class_input = st.session_state.get('inp_opponent_class')
             
             # 2. 相手のクラスとシーズンに基づいてデッキ名を選択
-            opponent_deck_name_options_input = get_decks_for_class_and_season_input(df, current_selected_season_input, current_opponent_class_input,  'opponent_class')
+            opponent_deck_name_options_input = get_decks_for_class_and_season_input(df, current_selected_season_input, current_opponent_class_input, 'opponent_class')
             st.selectbox("相手デッキ *", opponent_deck_name_options_input, key='inp_opponent_deck', on_change=on_opponent_deck_select_change_input_form)
             if st.session_state.get('inp_opponent_deck') == NEW_ENTRY_LABEL:
                 st.text_input("新しい相手デッキ名を入力 *", value=st.session_state.get('inp_opponent_deck_new', ""), key='inp_opponent_deck_new')
