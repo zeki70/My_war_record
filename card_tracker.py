@@ -978,7 +978,9 @@ def main():
             st.text_input("新しいフォーマット名を入力 *", value=st.session_state.get('inp_format_new', ""), key='inp_format_new')
 
         # 現在選択されているシーズンとクラスを後の処理で使うために取得
+        # ▼▼▼ この部分で必要な変数を定義します ▼▼▼
         current_selected_season_input = st.session_state.get('inp_season_select')
+        current_selected_format_input = st.session_state.get('inp_format_select') # ★この行が重要です★
         
 
         col1, col2 = st.columns(2)
