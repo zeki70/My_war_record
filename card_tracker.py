@@ -781,6 +781,59 @@ def main():
 
     df = load_data(SPREADSHEET_ID, WORKSHEET_NAME)
 
+    # --- ▼▼▼ アプリ初回起動時（または新セッション時）にスプレッドシートの最終行から入力値を読み込む ▼▼▼ ---
+    if not st.session_state.get('form_values_initialized_from_gsheet', False):
+        if not df.empty:
+            last_entry = df.iloc[-1].copy() # 最終行を取得
+
+            # セッションステートキーとDataFrameの列名のマッピング
+            fields_to_load_from_gsheet = {
+                'inp_season_select': 'season',
+                'inp_date': 'date', # load_dataでdatetimeオブジェクトに変換済みのはず
+                'inp_environment_select': 'environment',
+                'inp_format_select': 'format',
+                'inp_my_class': 'my_class',
+                'inp_my_deck': 'my_deck',
+                'inp_my_deck_type': 'my_deck_type',
+                'inp_opponent_class': 'opponent_class',
+                'inp_opponent_deck': 'opponent_deck',
+                'inp_opponent_deck_type': 'opponent_deck_type',
+                'inp_first_second': 'first_second',
+                'inp_result': 'result',
+                'inp_finish_turn': 'finish_turn' # load_dataでInt64 (nullable int) に変換済みのはず
+                # 'inp_memo' は意図的に含めない
+            }
+
+            for session_key, df_col_name in fields_to_load_from_gsheet.items():
+                if df_col_name in last_entry and pd.notna(last_entry[df_col_name]):
+                    value_from_sheet = last_entry[df_col_name]
+                    
+                    if session_key == 'inp_date':
+                        # df['date'] は load_data で pd.to_datetime されているので datetimeのはず
+                        if isinstance(value_from_sheet, datetime):
+                            st.session_state[session_key] = value_from_sheet.date()
+                        elif isinstance(value_from_sheet, pd.Timestamp):
+                             st.session_state[session_key] = value_from_sheet.date()
+                        # 文字列からの変換は load_data で行われている前提
+                    elif session_key == 'inp_finish_turn':
+                        # df['finish_turn'] は load_data で Int64 (pd.NA を含むことがある)
+                        if pd.notna(value_from_sheet): # pd.NA でないことを確認
+                            try:
+                                st.session_state[session_key] = int(value_from_sheet)
+                            except (ValueError, TypeError):
+                                # 変換に失敗した場合は、ウィジェットのデフォルト値に任せるため何もしない
+                                pass
+                        # pd.NA の場合も何もしない (ウィジェットのデフォルト値が使われる)
+                    else:
+                        # selectbox や text_input に渡す値は文字列が良い場合が多い
+                        st.session_state[session_key] = str(value_from_sheet)
+                # else: スプレッドシートの最終行に値がない場合は、st.session_state を設定せず、
+                #       各ウィジェット定義時の st.session_state.get(key, default_value) の
+                #       default_value が使われるようにする。
+        
+        st.session_state.form_values_initialized_from_gsheet = True # このセッションでは一度実行したフラグ
+    # --- ▲▲▲ スプレッドシート最終行からの読み込み処理ここまで ▲▲▲ ---
+
 # main() 関数内で定義
 
     # --- on_change コールバック関数の定義 ---
