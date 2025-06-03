@@ -235,43 +235,97 @@ def get_unique_items_with_new_option(df, column_name, predefined_options=None):
 
 # --- 入力フォーム用ヘルパー関数 (シーズン・クラス絞り込み、デッキ名/型候補拡張) ---
 
-def get_decks_for_class_and_season_input(df, selected_season, selected_ui_class):
+# --- 入力フォーム用ヘルパー関数 (シーズン・クラス・フォーマット絞り込み対応) ---
+
+def get_decks_for_filter_conditions_input(df, selected_season, selected_ui_class, selected_format):
     """
-    指定されたシーズンとUIで選択されたクラスに基づいて、my_deck と opponent_deck の両方から
-    該当するユニークなデッキ名のリストを取得する。
-    selected_ui_class: UI上で選択されたクラス名（例: 「エルフ」）
+    指定されたシーズン、UIで選択されたクラス、選択されたフォーマットに基づいて、
+    my_deck と opponent_deck の両方から該当するユニークなデッキ名のリストを取得する。
+    selected_ui_class: UI上で選択されたクラス名
+    selected_format: UI上で選択されたフォーマット名
     """
-    if not selected_ui_class: # UIでクラスが選択されていない場合は空の候補リスト（＋新規入力）
+    if not selected_ui_class: # クラスが選択されていない場合は候補を絞り込めない
+        return [NEW_ENTRY_LABEL]
+    # フォーマットが選択されていない場合も候補を絞り込めない（または全フォーマットを対象とするか選べるが、今回は必須とする）
+    if not selected_format or selected_format == NEW_ENTRY_LABEL: # NEW_ENTRY_LABEL は不正なフォーマット値として扱う
         return [NEW_ENTRY_LABEL]
 
-    df_filtered_by_season = df.copy()
+
+    df_filtered = df.copy()
 
     # 1. シーズンで絞り込み
     if selected_season and selected_season != NEW_ENTRY_LABEL and pd.notna(selected_season):
-        df_filtered_by_season = df_filtered_by_season[df_filtered_by_season['season'].astype(str) == str(selected_season)]
+        df_filtered = df_filtered[df_filtered['season'].astype(str) == str(selected_season)]
     
-    if df_filtered_by_season.empty:
+    # 2. フォーマットで絞り込み
+    df_filtered = df_filtered[df_filtered['format'].astype(str) == str(selected_format)]
+    
+    if df_filtered.empty: # シーズンとフォーマットで絞り込んだ結果、データがなければ早期リターン
         return [NEW_ENTRY_LABEL]
 
     deck_names_set = set()
 
-    # 2a. UIで選択されたクラスが「自分のクラス」列と一致する場合の「自分のデッキ名」を収集
-    my_class_matches_df = df_filtered_by_season[df_filtered_by_season['my_class'].astype(str) == str(selected_ui_class)]
-    if not my_class_matches_df.empty and 'my_deck' in my_class_matches_df.columns:
-        valid_items_my_deck = my_class_matches_df['my_deck'].astype(str).replace('', pd.NA).dropna()
+    # 3a. UIで選択されたクラスが「自分のクラス」列と一致する場合の「自分のデッキ名」を収集
+    my_class_deck_df = df_filtered[df_filtered['my_class'].astype(str) == str(selected_ui_class)]
+    if not my_class_deck_df.empty and 'my_deck' in my_class_deck_df.columns:
+        valid_items_my_deck = my_class_deck_df['my_deck'].astype(str).replace('', pd.NA).dropna()
         deck_names_set.update(d for d in valid_items_my_deck.tolist() if d and d.lower() != 'nan')
     
-    # 2b. UIで選択されたクラスが「相手のクラス」列と一致する場合の「相手のデッキ名」を収集
-    opponent_class_matches_df = df_filtered_by_season[df_filtered_by_season['opponent_class'].astype(str) == str(selected_ui_class)]
-    if not opponent_class_matches_df.empty and 'opponent_deck' in opponent_class_matches_df.columns:
-        valid_items_opponent_deck = opponent_class_matches_df['opponent_deck'].astype(str).replace('', pd.NA).dropna()
+    # 3b. UIで選択されたクラスが「相手のクラス」列と一致する場合の「相手のデッキ名」を収集
+    opponent_class_deck_df = df_filtered[df_filtered['opponent_class'].astype(str) == str(selected_ui_class)]
+    if not opponent_class_deck_df.empty and 'opponent_deck' in opponent_class_deck_df.columns:
+        valid_items_opponent_deck = opponent_class_deck_df['opponent_deck'].astype(str).replace('', pd.NA).dropna()
         deck_names_set.update(d for d in valid_items_opponent_deck.tolist() if d and d.lower() != 'nan')
             
     if not deck_names_set:
         return [NEW_ENTRY_LABEL]
     return [NEW_ENTRY_LABEL] + sorted(list(deck_names_set))
 
-def get_types_for_deck_class_and_season_input(df, selected_season, selected_ui_class, selected_deck_name):
+def get_types_for_filter_conditions_input(df, selected_season, selected_ui_class, selected_deck_name, selected_format):
+    """
+    指定されたシーズン、UIで選択されたクラス、UIで選択されたデッキ名、選択されたフォーマットに基づいて、
+    my_deck_type と opponent_deck_type の両方から該当するユニークなデッキタイプのリストを取得する。
+    """
+    if (not selected_ui_class or 
+        not selected_deck_name or selected_deck_name == NEW_ENTRY_LABEL or pd.isna(selected_deck_name) or
+        not selected_format or selected_format == NEW_ENTRY_LABEL): # フォーマットもチェック
+        return [NEW_ENTRY_LABEL]
+
+    df_filtered = df.copy()
+
+    # 1. シーズンで絞り込み
+    if selected_season and selected_season != NEW_ENTRY_LABEL and pd.notna(selected_season):
+        df_filtered = df_filtered[df_filtered['season'].astype(str) == str(selected_season)]
+    
+    # 2. フォーマットで絞り込み
+    df_filtered = df_filtered[df_filtered['format'].astype(str) == str(selected_format)]
+
+    if df_filtered.empty: # シーズンとフォーマットで絞り込んだ結果、データがなければ早期リターン
+        return [NEW_ENTRY_LABEL]
+
+    types_set = set()
+
+    # 3a. UIで選択されたクラスが「自分のクラス」で、かつ選択されたデッキ名が「自分のデッキ」の場合の「自分のデッキタイプ」を収集
+    my_context_df = df_filtered[
+        (df_filtered['my_class'].astype(str) == str(selected_ui_class)) &
+        (df_filtered['my_deck'].astype(str) == str(selected_deck_name))
+    ]
+    if not my_context_df.empty and 'my_deck_type' in my_context_df.columns:
+        valid_items_my_type = my_context_df['my_deck_type'].astype(str).replace('', pd.NA).dropna()
+        types_set.update(t for t in valid_items_my_type.tolist() if t and t.lower() != 'nan')
+
+    # 3b. UIで選択されたクラスが「相手のクラス」で、かつ選択されたデッキ名が「相手のデッキ」の場合の「相手のデッキタイプ」を収集
+    opponent_context_df = df_filtered[
+        (df_filtered['opponent_class'].astype(str) == str(selected_ui_class)) &
+        (df_filtered['opponent_deck'].astype(str) == str(selected_deck_name))
+    ]
+    if not opponent_context_df.empty and 'opponent_deck_type' in opponent_context_df.columns:
+        valid_items_opponent_type = opponent_context_df['opponent_deck_type'].astype(str).replace('', pd.NA).dropna()
+        types_set.update(t for t in valid_items_opponent_type.tolist() if t and t.lower() != 'nan')
+
+    if not types_set:
+        return [NEW_ENTRY_LABEL]
+    return [NEW_ENTRY_LABEL] + sorted(list(types_set))
     """
     指定されたシーズン、UIで選択されたクラス、UIで選択されたデッキ名に基づいて、
     my_deck_type と opponent_deck_type の両方から該当するユニークなデッキタイプのリストを取得する。
@@ -875,6 +929,21 @@ def main():
         # 相手のデッキ名変更時は、相手のデッキタイプをリセット
         if 'inp_opponent_deck_type' in st.session_state: st.session_state.inp_opponent_deck_type = NEW_ENTRY_LABEL
         if 'inp_opponent_deck_type_new' in st.session_state: st.session_state.inp_opponent_deck_type_new = ""
+
+    def on_format_select_change_input_form():
+        # フォーマット変更時は、デッキ名とデッキタイプをリセット (自分と相手の両方)
+        keys_to_reset_options = [
+            'inp_my_deck', 'inp_my_deck_type',
+            'inp_opponent_deck', 'inp_opponent_deck_type',
+        ]
+        keys_to_reset_new_fields = [
+            'inp_my_deck_new', 'inp_my_deck_type_new',
+            'inp_opponent_deck_new', 'inp_opponent_deck_type_new'
+        ]
+        for key in keys_to_reset_options:
+            if key in st.session_state: st.session_state[key] = NEW_ENTRY_LABEL
+        for key in keys_to_reset_new_fields:
+            if key in st.session_state: st.session_state[key] = ""
     # --- コールバック定義ここまで ---
 # main() 関数内の入力フォーム部分 (with st.expander(...) の中)
 
@@ -903,7 +972,8 @@ def main():
         predefined_formats = ["ローテーション", "アンリミテッド", "2Pick"]
         # ... (フォーマットの入力ウィジェットはそのまま) ...
         format_options_input = get_unique_items_with_new_option(df, 'format', predefined_options=predefined_formats)
-        st.selectbox("フォーマット *", format_options_input, key='inp_format_select')
+        st.selectbox("フォーマット *", format_options_input, key='inp_format_select', 
+                     on_change=on_format_select_change_input_form) 
         if st.session_state.get('inp_format_select') == NEW_ENTRY_LABEL:
             st.text_input("新しいフォーマット名を入力 *", value=st.session_state.get('inp_format_new', ""), key='inp_format_new')
 
@@ -922,14 +992,14 @@ def main():
             current_my_class_input = st.session_state.get('inp_my_class')
 
             # 2. 自分のクラスとシーズンに基づいてデッキ名を選択
-            my_deck_name_options_input = get_decks_for_class_and_season_input(df, current_selected_season_input, current_my_class_input,)
+            my_deck_name_options_input = get_decks_for_filter_conditions_input(df, current_selected_season_input, current_my_class_input, current_selected_format_input) # ★ 引数にフォーマット追加
             st.selectbox("使用デッキ *", my_deck_name_options_input, key='inp_my_deck', on_change=on_my_deck_select_change_input_form)
             if st.session_state.get('inp_my_deck') == NEW_ENTRY_LABEL:
                 st.text_input("新しい使用デッキ名を入力 *", value=st.session_state.get('inp_my_deck_new', ""), key='inp_my_deck_new')
             current_my_deck_name_input = st.session_state.get('inp_my_deck')
 
             # 3. 自分のクラス、シーズン、デッキ名に基づいてデッキタイプを選択
-            my_deck_type_options_input = get_types_for_deck_class_and_season_input(df, current_selected_season_input, current_my_class_input, current_my_deck_name_input)
+            my_deck_type_options_input = get_types_for_filter_conditions_input(df, current_selected_season_input, current_my_class_input, current_my_deck_name_input, current_selected_format_input) # ★ 引数にフォーマット追加
             st.selectbox("使用デッキの型 *", my_deck_type_options_input, key='inp_my_deck_type')
             if st.session_state.get('inp_my_deck_type') == NEW_ENTRY_LABEL:
                 st.text_input("新しい使用デッキの型を入力 *", value=st.session_state.get('inp_my_deck_type_new', ""), key='inp_my_deck_type_new')
@@ -944,14 +1014,14 @@ def main():
             current_opponent_class_input = st.session_state.get('inp_opponent_class')
             
             # 2. 相手のクラスとシーズンに基づいてデッキ名を選択
-            opponent_deck_name_options_input = get_decks_for_class_and_season_input(df, current_selected_season_input, current_opponent_class_input,)
+            opponent_deck_name_options_input = get_decks_for_filter_conditions_input(df, current_selected_season_input, current_opponent_class_input, current_selected_format_input) # ★ 引数にフォーマット追加
             st.selectbox("相手デッキ *", opponent_deck_name_options_input, key='inp_opponent_deck', on_change=on_opponent_deck_select_change_input_form)
             if st.session_state.get('inp_opponent_deck') == NEW_ENTRY_LABEL:
                 st.text_input("新しい相手デッキ名を入力 *", value=st.session_state.get('inp_opponent_deck_new', ""), key='inp_opponent_deck_new')
             current_opponent_deck_name_input = st.session_state.get('inp_opponent_deck')
 
             # 3. 相手のクラス、シーズン、デッキ名に基づいてデッキタイプを選択
-            opponent_deck_type_options_input = get_types_for_deck_class_and_season_input(df, current_selected_season_input, current_opponent_class_input, current_opponent_deck_name_input)
+           opponent_deck_type_options_input = get_types_for_filter_conditions_input(df, current_selected_season_input, current_opponent_class_input, current_opponent_deck_name_input, current_selected_format_input) # ★ 引数にフォーマット追加
             st.selectbox("相手デッキの型 *", opponent_deck_type_options_input, key='inp_opponent_deck_type')
             if st.session_state.get('inp_opponent_deck_type') == NEW_ENTRY_LABEL:
                 st.text_input("新しい相手デッキの型を入力 *", value=st.session_state.get('inp_opponent_deck_type_new', ""), key='inp_opponent_deck_type_new')
