@@ -286,6 +286,7 @@ def get_types_for_deck_class_and_season_input(df, selected_season, selected_clas
     if not types_set:
         return [NEW_ENTRY_LABEL]
     return [NEW_ENTRY_LABEL] + sorted(list(types_set))
+
 # --- 分析用ヘルパー関数 ---
 def get_all_analyzable_deck_names(df):
     ### 変更点 ### 自分が使用したデッキ（my_deck）のみを分析対象とする
@@ -774,7 +775,7 @@ def main():
             current_my_class_input = st.session_state.get('inp_my_class')
 
             # 2. 自分のクラスとシーズンに基づいてデッキ名を選択
-            my_deck_name_options_input = get_decks_for_class_and_season_input(df, current_selected_season_input, current_my_class_input, 'my_deck', 'my_class')
+            my_deck_name_options_input = get_decks_for_class_and_season_input(df, current_selected_season_input, current_my_class_input, 'my_class')
             st.selectbox("使用デッキ *", my_deck_name_options_input, key='inp_my_deck', on_change=on_my_deck_select_change_input_form)
             if st.session_state.get('inp_my_deck') == NEW_ENTRY_LABEL:
                 st.text_input("新しい使用デッキ名を入力 *", value=st.session_state.get('inp_my_deck_new', ""), key='inp_my_deck_new')
@@ -796,7 +797,7 @@ def main():
             current_opponent_class_input = st.session_state.get('inp_opponent_class')
             
             # 2. 相手のクラスとシーズンに基づいてデッキ名を選択
-            opponent_deck_name_options_input = get_decks_for_class_and_season_input(df, current_selected_season_input, current_opponent_class_input, 'opponent_deck', 'opponent_class')
+            opponent_deck_name_options_input = get_decks_for_class_and_season_input(df, current_selected_season_input, current_opponent_class_input,  'opponent_class')
             st.selectbox("相手デッキ *", opponent_deck_name_options_input, key='inp_opponent_deck', on_change=on_opponent_deck_select_change_input_form)
             if st.session_state.get('inp_opponent_deck') == NEW_ENTRY_LABEL:
                 st.text_input("新しい相手デッキ名を入力 *", value=st.session_state.get('inp_opponent_deck_new', ""), key='inp_opponent_deck_new')
