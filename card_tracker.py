@@ -208,85 +208,85 @@ def get_unique_items_with_new_option(df, column_name, predefined_options=None):
 
 # --- 入力フォーム用ヘルパー関数 (シーズン・クラス絞り込み対応、デッキ名候補拡張) ---
 
-def get_decks_for_class_and_season_input(df, selected_season, selected_class, class_column_name_to_filter_by):
+# --- 入力フォーム用ヘルパー関数 (シーズン・クラス絞り込み、デッキ名/型候補拡張) ---
+
+def get_decks_for_class_and_season_input(df, selected_season, selected_ui_class):
     """
-    指定されたシーズンとクラスに基づいて、my_deck と opponent_deck の両方から
+    指定されたシーズンとUIで選択されたクラスに基づいて、my_deck と opponent_deck の両方から
     該当するユニークなデッキ名のリストを取得する。
-    class_column_name_to_filter_by: 'my_class' または 'opponent_class' (どちらのクラス選択に基づいてフィルタリングするか)
+    selected_ui_class: UI上で選択されたクラス名（例: 「エルフ」）
     """
-    if not selected_class: # クラスが選択されていない場合は空の候補リスト（＋新規入力）
+    if not selected_ui_class: # UIでクラスが選択されていない場合は空の候補リスト（＋新規入力）
         return [NEW_ENTRY_LABEL]
 
-    df_filtered = df.copy()
+    df_filtered_by_season = df.copy()
 
     # 1. シーズンで絞り込み
     if selected_season and selected_season != NEW_ENTRY_LABEL and pd.notna(selected_season):
-        df_filtered = df_filtered[df_filtered['season'].astype(str) == str(selected_season)]
+        df_filtered_by_season = df_filtered_by_season[df_filtered_by_season['season'].astype(str) == str(selected_season)]
     
-    # 2. 指定されたクラス列で絞り込み
-    # (例: 「自分のクラス」を選択した場合は、df_filtered の class_column_name_to_filter_by ('my_class') が selected_class である行)
-    df_filtered = df_filtered[df_filtered[class_column_name_to_filter_by].astype(str) == str(selected_class)]
-
-    if df_filtered.empty:
+    if df_filtered_by_season.empty:
         return [NEW_ENTRY_LABEL]
 
     deck_names_set = set()
-    # my_deck 列からデッキ名を収集
-    if 'my_deck' in df_filtered.columns and not df_filtered['my_deck'].empty:
-        valid_items_my = df_filtered['my_deck'].astype(str).replace('', pd.NA).dropna()
-        deck_names_set.update(d for d in valid_items_my.tolist() if d and d.lower() != 'nan')
+
+    # 2a. UIで選択されたクラスが「自分のクラス」列と一致する場合の「自分のデッキ名」を収集
+    my_class_matches_df = df_filtered_by_season[df_filtered_by_season['my_class'].astype(str) == str(selected_ui_class)]
+    if not my_class_matches_df.empty and 'my_deck' in my_class_matches_df.columns:
+        valid_items_my_deck = my_class_matches_df['my_deck'].astype(str).replace('', pd.NA).dropna()
+        deck_names_set.update(d for d in valid_items_my_deck.tolist() if d and d.lower() != 'nan')
     
-    # opponent_deck 列からもデッキ名を収集
-    if 'opponent_deck' in df_filtered.columns and not df_filtered['opponent_deck'].empty:
-        valid_items_opponent = df_filtered['opponent_deck'].astype(str).replace('', pd.NA).dropna()
-        deck_names_set.update(d for d in valid_items_opponent.tolist() if d and d.lower() != 'nan')
+    # 2b. UIで選択されたクラスが「相手のクラス」列と一致する場合の「相手のデッキ名」を収集
+    opponent_class_matches_df = df_filtered_by_season[df_filtered_by_season['opponent_class'].astype(str) == str(selected_ui_class)]
+    if not opponent_class_matches_df.empty and 'opponent_deck' in opponent_class_matches_df.columns:
+        valid_items_opponent_deck = opponent_class_matches_df['opponent_deck'].astype(str).replace('', pd.NA).dropna()
+        deck_names_set.update(d for d in valid_items_opponent_deck.tolist() if d and d.lower() != 'nan')
             
     if not deck_names_set:
         return [NEW_ENTRY_LABEL]
     return [NEW_ENTRY_LABEL] + sorted(list(deck_names_set))
 
-def get_types_for_deck_class_and_season_input(df, selected_season, selected_class, selected_deck_name, class_column_name_to_filter_by):
+def get_types_for_deck_class_and_season_input(df, selected_season, selected_ui_class, selected_deck_name):
     """
-    指定されたシーズン、クラス、デッキ名に基づいて、該当するデッキタイプのリストを取得する。
-    my_deck_type と opponent_deck_type の両方から収集する。
+    指定されたシーズン、UIで選択されたクラス、UIで選択されたデッキ名に基づいて、
+    my_deck_type と opponent_deck_type の両方から該当するユニークなデッキタイプのリストを取得する。
     """
-    if (not selected_class or 
+    if (not selected_ui_class or 
         not selected_deck_name or selected_deck_name == NEW_ENTRY_LABEL or pd.isna(selected_deck_name)):
         return [NEW_ENTRY_LABEL]
 
-    df_filtered = df.copy()
+    df_filtered_by_season = df.copy()
 
     # 1. シーズンで絞り込み
     if selected_season and selected_season != NEW_ENTRY_LABEL and pd.notna(selected_season):
-        df_filtered = df_filtered[df_filtered['season'].astype(str) == str(selected_season)]
-    
-    # 2. 指定されたクラス列で絞り込み
-    df_filtered = df_filtered[df_filtered[class_column_name_to_filter_by].astype(str) == str(selected_class)]
-    
-    # 3. デッキ名で絞り込む (my_deck または opponent_deck のどちらかが一致すればよい)
-    #    ただし、型はそれぞれの列から取得する
-    
-    if df_filtered.empty: # この時点で候補がなければ早期リターン
+        df_filtered_by_season = df_filtered_by_season[df_filtered_by_season['season'].astype(str) == str(selected_season)]
+
+    if df_filtered_by_season.empty:
         return [NEW_ENTRY_LABEL]
 
     types_set = set()
 
-    # my_deck が selected_deck_name に一致する場合の my_deck_type を収集
-    my_deck_type_matches = df_filtered[df_filtered['my_deck'].astype(str) == str(selected_deck_name)]
-    if not my_deck_type_matches.empty and 'my_deck_type' in my_deck_type_matches.columns:
-        valid_items_my_type = my_deck_type_matches['my_deck_type'].astype(str).replace('', pd.NA).dropna()
+    # 2a. UIで選択されたクラスが「自分のクラス」で、かつ選択されたデッキ名が「自分のデッキ」の場合の「自分のデッキタイプ」を収集
+    my_context_df = df_filtered_by_season[
+        (df_filtered_by_season['my_class'].astype(str) == str(selected_ui_class)) &
+        (df_filtered_by_season['my_deck'].astype(str) == str(selected_deck_name))
+    ]
+    if not my_context_df.empty and 'my_deck_type' in my_context_df.columns:
+        valid_items_my_type = my_context_df['my_deck_type'].astype(str).replace('', pd.NA).dropna()
         types_set.update(t for t in valid_items_my_type.tolist() if t and t.lower() != 'nan')
 
-    # opponent_deck が selected_deck_name に一致する場合の opponent_deck_type を収集
-    opponent_deck_type_matches = df_filtered[df_filtered['opponent_deck'].astype(str) == str(selected_deck_name)]
-    if not opponent_deck_type_matches.empty and 'opponent_deck_type' in opponent_deck_type_matches.columns:
-        valid_items_opponent_type = opponent_deck_type_matches['opponent_deck_type'].astype(str).replace('', pd.NA).dropna()
+    # 2b. UIで選択されたクラスが「相手のクラス」で、かつ選択されたデッキ名が「相手のデッキ」の場合の「相手のデッキタイプ」を収集
+    opponent_context_df = df_filtered_by_season[
+        (df_filtered_by_season['opponent_class'].astype(str) == str(selected_ui_class)) &
+        (df_filtered_by_season['opponent_deck'].astype(str) == str(selected_deck_name))
+    ]
+    if not opponent_context_df.empty and 'opponent_deck_type' in opponent_context_df.columns:
+        valid_items_opponent_type = opponent_context_df['opponent_deck_type'].astype(str).replace('', pd.NA).dropna()
         types_set.update(t for t in valid_items_opponent_type.tolist() if t and t.lower() != 'nan')
 
     if not types_set:
         return [NEW_ENTRY_LABEL]
     return [NEW_ENTRY_LABEL] + sorted(list(types_set))
-
 # --- 分析用ヘルパー関数 ---
 def get_all_analyzable_deck_names(df):
     ### 変更点 ### 自分が使用したデッキ（my_deck）のみを分析対象とする
