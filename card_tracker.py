@@ -834,8 +834,25 @@ def main():
         if st.session_state.get('inp_season_select') == NEW_ENTRY_LABEL:
             st.text_input("新しいシーズン名を入力 *", value=st.session_state.get('inp_season_new', ""), key='inp_season_new')
         
-        # (日付、環境、フォーマットの入力ウィジェットはそのまま)
-        # ...
+        default_dt_for_input = datetime.today().date()
+        inp_date_value = st.session_state.get('inp_date', default_dt_for_input)
+        # ... (日付入力のロジックはそのまま) ...
+        st.date_input("対戦日", value=inp_date_value, key='inp_date')
+
+        predefined_environments = ["ランクマッチ", "レート", "壁打ち"]
+        # ... (対戦環境の入力ウィジェットはそのまま) ...
+        environment_options_input = get_unique_items_with_new_option(df, 'environment', predefined_options=predefined_environments)
+        st.selectbox("対戦環境 *", environment_options_input, key='inp_environment_select')
+        if st.session_state.get('inp_environment_select') == NEW_ENTRY_LABEL:
+            st.text_input("新しい対戦環境を入力 *", value=st.session_state.get('inp_environment_new', ""), key='inp_environment_new')
+
+        # st.write("---") # 区切りは元の形式に合わせて調整
+        predefined_formats = ["ローテーション", "アンリミテッド", "2Pick"]
+        # ... (フォーマットの入力ウィジェットはそのまま) ...
+        format_options_input = get_unique_items_with_new_option(df, 'format', predefined_options=predefined_formats)
+        st.selectbox("フォーマット *", format_options_input, key='inp_format_select')
+        if st.session_state.get('inp_format_select') == NEW_ENTRY_LABEL:
+            st.text_input("新しいフォーマット名を入力 *", value=st.session_state.get('inp_format_new', ""), key='inp_format_new')
 
         # 現在選択されているシーズンとクラスを後の処理で使うために取得
         current_selected_season_input = st.session_state.get('inp_season_select')
