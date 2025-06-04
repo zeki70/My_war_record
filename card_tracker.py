@@ -557,6 +557,60 @@ def display_opponent_deck_summary(df_to_analyze):
         "平均決着ターン": lambda x: f"{x:.1f} T" if pd.notnull(x) else "N/A",
     }), use_container_width=True)
 
+def display_overall_filtered_performance(df_to_analyze):
+    st.subheader("総合戦績概要（フィルター適用後）")
+
+    if df_to_analyze.empty:
+        st.info("この条件での分析対象データがありません。")
+        return
+
+    total_games = len(df_to_analyze)
+    total_wins = len(df_to_analyze[df_to_analyze['result'] == '勝ち'])
+    total_losses = total_games - total_wins
+    overall_win_rate = (total_wins / total_games * 100) if total_games > 0 else None
+
+    # 先攻/後攻別パフォーマンス
+    first_games_df = df_to_analyze[df_to_analyze['first_second'] == '先攻']
+    total_first_games = len(first_games_df)
+    wins_first = len(first_games_df[first_games_df['result'] == '勝ち'])
+    win_rate_first = (wins_first / total_first_games * 100) if total_first_games > 0 else None
+
+    second_games_df = df_to_analyze[df_to_analyze['first_second'] == '後攻']
+    total_second_games = len(second_games_df)
+    wins_second = len(second_games_df[second_games_df['result'] == '勝ち'])
+    win_rate_second = (wins_second / total_second_games * 100) if total_second_games > 0 else None
+    
+    # --- ▼▼▼ 平均決着ターンの計算ロジックを削除しました ▼▼▼ ---
+    # avg_win_finish_turn = None
+    # (勝利時平均決着ターンの計算 ... )
+    # avg_loss_finish_turn = None
+    # (敗北時平均決着ターンの計算 ... )
+    # --- ▲▲▲ 平均決着ターンの計算ロジック削除ここまで ▲▲▲ ---
+
+    # st.metric を使って表示
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("総対戦数", f"{total_games} 戦")
+        st.metric("先攻時勝率", 
+                  f"{win_rate_first:.1f}%" if win_rate_first is not None else "N/A",
+                  help=f"先攻 {total_first_games}戦 {wins_first}勝" if total_first_games > 0 else "データなし")
+        # --- ▼▼▼ 「勝利時 平均決着T」の st.metric 表示を削除しました ▼▼▼ ---
+        # st.metric("勝利時 平均決着T", ...) 
+        # --- ▲▲▲ 表示削除ここまで ▲▲▲ ---
+        
+    with col2:
+        st.metric("総勝利数", f"{total_wins} 勝")
+        st.metric("後攻時勝率", 
+                  f"{win_rate_second:.1f}%" if win_rate_second is not None else "N/A",
+                  help=f"後攻 {total_second_games}戦 {wins_second}勝" if total_second_games > 0 else "データなし")
+        # --- ▼▼▼ 「敗北時 平均決着T」の st.metric 表示を削除しました ▼▼▼ ---
+        # st.metric("敗北時 平均決着T", ...)
+        # --- ▲▲▲ 表示削除ここまで ▲▲▲ ---
+
+    with col3:
+        st.metric("総敗北数", f"{total_losses} 敗")
+        st.metric("総合勝率", f"{overall_win_rate:.1f}%" if overall_win_rate is not None else "N/A")
+
 def show_analysis_section(original_df):
     st.header("📊 戦績分析")
     if original_df.empty:
@@ -866,6 +920,7 @@ def show_analysis_section(original_df):
         else: st.info(f"「{focus_deck_display_name}」使用時のメモ付きの記録は、現在の絞り込み条件ではありません。") # 文言変更
     else:
         display_general_deck_performance(df_for_analysis)
+        display_overall_filtered_performance(df_for_analysis)
 
             # display_general_deck_performance(df_for_analysis) # ★変更前：自分の使用デッキ概要を表示
         display_opponent_deck_summary(df_for_analysis)   # ★変更後：相手デッキ傾向分析を表示
