@@ -558,7 +558,7 @@ def display_opponent_deck_summary(df_to_analyze):
     }), use_container_width=True)
 
 def display_overall_filtered_performance(df_to_analyze):
-    st.subheader("総合戦績概要（フィルター適用後）")
+    st.subheader("総合戦績概要")
 
     if df_to_analyze.empty:
         st.info("この条件での分析対象データがありません。")
@@ -919,8 +919,8 @@ def show_analysis_section(original_df):
             st.dataframe(df_memo_display.sort_values(by='date', ascending=False), use_container_width=True)
         else: st.info(f"「{focus_deck_display_name}」使用時のメモ付きの記録は、現在の絞り込み条件ではありません。") # 文言変更
     else:
-        display_general_deck_performance(df_for_analysis)
         display_overall_filtered_performance(df_for_analysis)
+        display_general_deck_performance(df_for_analysis)
 
             # display_general_deck_performance(df_for_analysis) # ★変更前：自分の使用デッキ概要を表示
         display_opponent_deck_summary(df_for_analysis)   # ★変更後：相手デッキ傾向分析を表示
@@ -928,7 +928,7 @@ def show_analysis_section(original_df):
 def main():
     PREDEFINED_CLASSES = ["エルフ", "ロイヤル", "ウィッチ", "ドラゴン", "ナイトメア", "ビショップ", "ネメシス"] # 「ナイトメア」を「ネクロマンサー」に統一（またはお好みに合わせて調整）
 
-    st.title(f"カードゲーム戦績管理アプリ ({SPREADSHEET_NAME_DISPLAY})") # タイトル表示をSPREADSHEET_NAME_DISPLAYに連動
+    st.title(f"{SPREADSHEET_NAME_DISPLAY}") # タイトル表示をSPREADSHEET_NAME_DISPLAYに連動
     # st.title("Shadowverse戦績管理") # またはこのように直接指定も可能
 
     if SPREADSHEET_ID == "ここに実際の Waic-戦績 のスプレッドシートIDを貼り付け": # この警告は元のまま
