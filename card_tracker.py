@@ -995,7 +995,7 @@ def main():
             # セッションステートキーとDataFrameの列名のマッピング
             fields_to_load_from_gsheet = {
                 'inp_season_select': 'season',
-                'inp_date': 'date', # load_dataでdatetimeオブジェクトに変換済みのはず
+                 # dataも意図的に含めない
                 'inp_environment_select': 'environment',
                 'inp_format_select': 'format',
                 'inp_my_class': 'my_class',
