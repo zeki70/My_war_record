@@ -617,7 +617,21 @@ def show_analysis_section(original_df):
         st.info("まだ分析できる戦績データがありません。")
         return
     st.subheader("絞り込み条件")
-    # --- ▼▼▼ 「フォーマットで絞り込み」の初期値を設定 ▼▼▼ ---
+    
+    # --- ▼▼▼ シーズンの初期値を最新データから設定 ▼▼▼ ---
+    if 'ana_season_filter' not in st.session_state:
+        # データフレームが空でない場合、最新（最後の行）のシーズンを取得
+        if not original_df.empty and 'season' in original_df.columns:
+            last_season = original_df.iloc[-1]['season']
+            if pd.notna(last_season) and str(last_season).strip() and str(last_season).lower() != 'nan':
+                st.session_state.ana_season_filter = str(last_season)
+            else:
+                st.session_state.ana_season_filter = SELECT_PLACEHOLDER
+        else:
+            st.session_state.ana_season_filter = SELECT_PLACEHOLDER
+    # --- ▲▲▲ シーズンの初期値設定ここまで ▲▲▲ ---
+
+    # --- ▼▼▼ フォーマットの初期値を最新データから設定（修正版） ▼▼▼ ---
     # まず、利用可能なフォーマットの選択肢リストを作成（SELECT_PLACEHOLDERなし）
     available_formats_in_data = sorted([
         f for f in original_df['format'].astype(str).replace('', pd.NA).dropna().unique() 
@@ -625,13 +639,33 @@ def show_analysis_section(original_df):
     ])
 
     if 'ana_format_filter' not in st.session_state: # セッションステートにキーがまだ存在しない場合のみ初期値を設定
-        if "ローテーション" in available_formats_in_data:
-            st.session_state.ana_format_filter = ["ローテーション"]
+        # データフレームが空でない場合、最新（最後の行）のフォーマットを取得
+        if not original_df.empty and 'format' in original_df.columns:
+            last_format = original_df.iloc[-1]['format']
+            if pd.notna(last_format) and str(last_format).strip() and str(last_format).lower() != 'nan':
+                last_format_str = str(last_format)
+                # 最新のフォーマットが利用可能なフォーマットに含まれている場合は、それを初期値とする
+                if last_format_str in available_formats_in_data:
+                    st.session_state.ana_format_filter = [last_format_str]
+                else:
+                    # 含まれていない場合は、従来通り「ローテーション」を優先
+                    if "ローテーション" in available_formats_in_data:
+                        st.session_state.ana_format_filter = ["ローテーション"]
+                    else:
+                        st.session_state.ana_format_filter = []
+            else:
+                # 最新データのフォーマットが無効な場合は、従来通り「ローテーション」を優先
+                if "ローテーション" in available_formats_in_data:
+                    st.session_state.ana_format_filter = ["ローテーション"]
+                else:
+                    st.session_state.ana_format_filter = []
         else:
-            # "ローテーション" がデータ内に存在しない場合は、何も選択しない (空リスト)
-            # または、もし他のデフォルト挙動が必要ならここで設定 (例: available_formats_in_data[0] など)
-            st.session_state.ana_format_filter = [] 
-    # --- ▲▲▲ 初期値設定ここまで ▲▲▲ ---
+            # データが空の場合は、従来通り「ローテーション」を優先
+            if "ローテーション" in available_formats_in_data:
+                st.session_state.ana_format_filter = ["ローテーション"]
+            else:
+                st.session_state.ana_format_filter = []
+    # --- ▲▲▲ フォーマットの初期値設定修正ここまで ▲▲▲ ---
 
     # ▼▼▼ 日付絞り込みのセクションを追加 ▼▼▼
     st.markdown("**日付による絞り込み (任意)**")
@@ -985,7 +1019,7 @@ def show_analysis_section(original_df):
                     "対戦相手デッキ": opp_deck_name, "対戦相手デッキの型": opp_deck_type,
                     "対戦数": games_played_display, "(自分の)勝利数": focus_deck_wins_count, # 文言変更
                     "(自分の)勝率(%)": win_rate_vs_opp, # 文言変更
-                    "勝利時平均ターン": avg_win_turn, "敗北時平均ターン": avg_loss_turn,
+                    "勝利時平均ターン": avg_win_turn, "敗北時平均決着ターン": avg_loss_turn,
                     "(自分の)先攻時勝率(%)": win_rate_fd_first_vs_opp, "(自分の)後攻時勝率(%)": win_rate_fd_second_vs_opp # 文言変更
                 })
 
