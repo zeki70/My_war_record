@@ -1177,7 +1177,7 @@ def main():
             # セッションステートキーとDataFrameの列名のマッピング
             fields_to_load_from_gsheet = {
                 'inp_season_select': 'season',
-                 # dataも意図的に含めない
+                # 'inp_date': 'date', # ★日付は毎回今日の日付にするため削除
                 'inp_environment_select': 'environment',
                 'inp_format_select': 'format',
                 'inp_group_select': 'group',
@@ -1197,14 +1197,7 @@ def main():
                 if df_col_name in last_entry and pd.notna(last_entry[df_col_name]):
                     value_from_sheet = last_entry[df_col_name]
                     
-                    if session_key == 'inp_date':
-                        # df['date'] は load_data で pd.to_datetime されているので datetimeのはず
-                        if isinstance(value_from_sheet, datetime):
-                            st.session_state[session_key] = value_from_sheet.date()
-                        elif isinstance(value_from_sheet, pd.Timestamp):
-                             st.session_state[session_key] = value_from_sheet.date()
-                        # 文字列からの変換は load_data で行われている前提
-                    elif session_key == 'inp_finish_turn':
+                    if session_key == 'inp_finish_turn':
                         # df['finish_turn'] は load_data で Int64 (pd.NA を含むことがある)
                         if pd.notna(value_from_sheet): # pd.NA でないことを確認
                             try:
@@ -1219,6 +1212,9 @@ def main():
                 # else: スプレッドシートの最終行に値がない場合は、st.session_state を設定せず、
                 #       各ウィジェット定義時の st.session_state.get(key, default_value) の
                 #       default_value が使われるようにする。
+        
+        # ★日付は毎回今日の日付に設定
+        st.session_state['inp_date'] = datetime.today().date()
         
         st.session_state.form_values_initialized_from_gsheet = True # このセッションでは一度実行したフラグ
     # --- ▲▲▲ スプレッドシート最終行からの読み込み処理ここまで ▲▲▲ ---
@@ -1294,7 +1290,7 @@ def main():
         default_dt_for_input = datetime.today().date()
         inp_date_value = st.session_state.get('inp_date', default_dt_for_input)
         # ... (日付入力のロジックはそのまま) ...
-        st.date_input("対戦日", value=inp_date_value, key='inp_date')
+        st.date_input("対戦日", value=datetime.today().date(), key='inp_date')
 
         predefined_environments = ["ランクマッチ", "レート", "壁打ち"]
         # ... (対戦環境の入力ウィジェットはそのまま) ...
