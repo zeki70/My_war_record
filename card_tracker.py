@@ -85,7 +85,6 @@ def get_gspread_client():
         return None
 
 # --- データ操作関数 ---
-# --- データ操作関数 ---
 def load_data(spreadsheet_id, worksheet_name):
     client = get_gspread_client()
     if client is None:
@@ -175,6 +174,7 @@ def load_data(spreadsheet_id, worksheet_name):
             elif col == 'finish_turn': df[col] = pd.Series(dtype='Int64')
             else: df[col] = pd.Series(dtype='object')
     return df
+
 def save_data(df_one_row, spreadsheet_id, worksheet_name):
     client = get_gspread_client()
     if client is None:
@@ -208,6 +208,126 @@ def save_data(df_one_row, spreadsheet_id, worksheet_name):
         st.error(f"Google Sheetsへのデータ書き込み中にエラーが発生しました: {type(e).__name__}: {e}")
         return False
 
+# ▼▼▼ 複数試合形式対応の関数を追加 ▼▼▼
+def save_multi_game_results(games_data, spreadsheet_id, worksheet_name):
+    """複数のゲーム結果をまとめて保存する関数"""
+    success_count = 0
+    for game_data in games_data:
+        new_df_row = pd.DataFrame([game_data], columns=COLUMNS)
+        if save_data(new_df_row, spreadsheet_id, worksheet_name):
+            success_count += 1
+        else:
+            return False, success_count
+    return True, success_count
+
+def show_multi_deck_input(match_format, current_selected_format_value, df, current_selected_season_input):
+    """複数デッキ対応の入力UI表示"""
+    if match_format == "2デッキBO1":
+        return show_2deck_bo1_input(current_selected_format_value, df, current_selected_season_input)
+    elif match_format == "BO3":
+        return show_bo3_input(current_selected_format_value, df, current_selected_season_input)
+    elif match_format == "BO5":
+        return show_bo5_input(current_selected_format_value, df, current_selected_season_input)
+    return None
+
+def show_2deck_bo1_input(current_selected_format_value, df, current_selected_season_input):
+    """2デッキBO1の入力UI"""
+    PREDEFINED_CLASSES = ["エルフ", "ロイヤル", "ウィッチ", "ドラゴン", "ナイトメア", "ビショップ", "ネメシス"]
+    
+    st.subheader("2デッキBO1 - デッキ選択と結果")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**自分のデッキ構成**")
+        my_class_1 = st.selectbox("自分のクラス1 *", PREDEFINED_CLASSES, key='inp_2deck_my_class_1')
+        my_class_2 = st.selectbox("自分のクラス2 *", PREDEFINED_CLASSES, key='inp_2deck_my_class_2')
+        
+        # 使用デッキ選択
+        my_deck_1_options = get_decks_for_filter_conditions_input(df, current_selected_season_input, my_class_1, current_selected_format_value)
+        my_deck_1 = st.selectbox("使用デッキ1 *", my_deck_1_options, key='inp_2deck_my_deck_1')
+        if my_deck_1 == NEW_ENTRY_LABEL:
+            my_deck_1 = st.text_input("新しいデッキ名1 *", key='inp_2deck_my_deck_1_new')
+        
+        my_deck_2_options = get_decks_for_filter_conditions_input(df, current_selected_season_input, my_class_2, current_selected_format_value)
+        my_deck_2 = st.selectbox("使用デッキ2 *", my_deck_2_options, key='inp_2deck_my_deck_2')
+        if my_deck_2 == NEW_ENTRY_LABEL:
+            my_deck_2 = st.text_input("新しいデッキ名2 *", key='inp_2deck_my_deck_2_new')
+            
+        # 実際に使用したデッキ
+        used_deck_options = []
+        if my_deck_1 and my_deck_1 != NEW_ENTRY_LABEL:
+            used_deck_options.append(f"{my_class_1}: {my_deck_1}")
+        if my_deck_2 and my_deck_2 != NEW_ENTRY_LABEL:
+            used_deck_options.append(f"{my_class_2}: {my_deck_2}")
+        
+        selected_my_deck = None
+        if used_deck_options:
+            selected_my_deck = st.selectbox("実際に使用したデッキ *", used_deck_options, key='inp_2deck_selected_my')
+    
+    with col2:
+        st.markdown("**相手のデッキ構成**")
+        opp_class_1 = st.selectbox("相手のクラス1 *", PREDEFINED_CLASSES, key='inp_2deck_opp_class_1')
+        opp_class_2 = st.selectbox("相手のクラス2 *", PREDEFINED_CLASSES, key='inp_2deck_opp_class_2')
+        
+        # 相手デッキ選択
+        opp_deck_1_options = get_decks_for_filter_conditions_input(df, current_selected_season_input, opp_class_1, current_selected_format_value)
+        opp_deck_1 = st.selectbox("相手デッキ1 *", opp_deck_1_options, key='inp_2deck_opp_deck_1')
+        if opp_deck_1 == NEW_ENTRY_LABEL:
+            opp_deck_1 = st.text_input("新しい相手デッキ名1 *", key='inp_2deck_opp_deck_1_new')
+        
+        opp_deck_2_options = get_decks_for_filter_conditions_input(df, current_selected_season_input, opp_class_2, current_selected_format_value)
+        opp_deck_2 = st.selectbox("相手デッキ2 *", opp_deck_2_options, key='inp_2deck_opp_deck_2')
+        if opp_deck_2 == NEW_ENTRY_LABEL:
+            opp_deck_2 = st.text_input("新しい相手デッキ名2 *", key='inp_2deck_opp_deck_2_new')
+            
+        # 相手が実際に使用したデッキ
+        used_opp_options = []
+        if opp_deck_1 and opp_deck_1 != NEW_ENTRY_LABEL:
+            used_opp_options.append(f"{opp_class_1}: {opp_deck_1}")
+        if opp_deck_2 and opp_deck_2 != NEW_ENTRY_LABEL:
+            used_opp_options.append(f"{opp_class_2}: {opp_deck_2}")
+        
+        selected_opp_deck = None
+        if used_opp_options:
+            selected_opp_deck = st.selectbox("相手が実際に使用したデッキ *", used_opp_options, key='inp_2deck_selected_opp')
+    
+    # 試合結果
+    st.markdown("**試合結果**")
+    res_col1, res_col2, res_col3 = st.columns(3)
+    with res_col1:
+        first_second = st.selectbox("先攻/後攻 *", ["先攻", "後攻"], key='inp_2deck_first_second')
+    with res_col2:
+        result = st.selectbox("勝敗 *", ["勝ち", "負け"], key='inp_2deck_result')
+    with res_col3:
+        finish_turn = st.number_input("決着ターン *", min_value=0, step=1, value=7, key='inp_2deck_finish_turn')
+    
+    memo = st.text_area("メモ (任意)", key='inp_2deck_memo')
+    
+    return {
+        'type': '2deck_bo1',
+        'my_decks': [(my_class_1, my_deck_1), (my_class_2, my_deck_2)],
+        'opp_decks': [(opp_class_1, opp_deck_1), (opp_class_2, opp_deck_2)],
+        'selected_my': selected_my_deck,
+        'selected_opp': selected_opp_deck,
+        'first_second': first_second,
+        'result': result,
+        'finish_turn': finish_turn,
+        'memo': memo
+    }
+
+def show_bo3_input(current_selected_format_value, df, current_selected_season_input):
+    """BO3の簡易版入力UI（実装を簡略化）"""
+    st.subheader("BO3 - 簡易入力")
+    st.info("BO3の詳細入力機能は今後実装予定です。現在はBO1形式で入力してください。")
+    return None
+
+def show_bo5_input(current_selected_format_value, df, current_selected_season_input):
+    """BO5の簡易版入力UI（実装を簡略化）"""
+    st.subheader("BO5 - 簡易入力")
+    st.info("BO5の詳細入力機能は今後実装予定です。現在はBO1形式で入力してください。")
+    return None
+# ▲▲▲ 複数試合形式対応の関数追加ここまで ▲▲▲
+
 # --- 入力フォーム用ヘルパー関数 (シーズン絞り込み対応) ---
 def get_unique_items_with_new_option(df, column_name, predefined_options=None):
     items = []
@@ -228,14 +348,6 @@ def get_unique_items_with_new_option(df, column_name, predefined_options=None):
         final_options.append(NEW_ENTRY_LABEL)
     final_options.extend([item for item in items if item != NEW_ENTRY_LABEL])
     return final_options
-
-# --- 入力フォーム用ヘルパー関数 (シーズン・クラス絞り込み対応) ---
-
-# --- 入力フォーム用ヘルパー関数 (シーズン・クラス絞り込み、デッキ名候補拡張) ---
-
-# --- 入力フォーム用ヘルパー関数 (シーズン・クラス絞り込み、デッキ名/型候補拡張) ---
-
-# --- 入力フォーム用ヘルパー関数 (シーズン・クラス・フォーマット絞り込み対応) ---
 
 def get_decks_for_filter_conditions_input(df, selected_season, selected_ui_class, selected_format):
     """
@@ -326,52 +438,14 @@ def get_types_for_filter_conditions_input(df, selected_season, selected_ui_class
     if not types_set:
         return [NEW_ENTRY_LABEL]
     return [NEW_ENTRY_LABEL] + sorted(list(types_set))
-    """
-    指定されたシーズン、UIで選択されたクラス、UIで選択されたデッキ名に基づいて、
-    my_deck_type と opponent_deck_type の両方から該当するユニークなデッキタイプのリストを取得する。
-    """
-    if (not selected_ui_class or 
-        not selected_deck_name or selected_deck_name == NEW_ENTRY_LABEL or pd.isna(selected_deck_name)):
-        return [NEW_ENTRY_LABEL]
 
-    df_filtered_by_season = df.copy()
-
-    # 1. シーズンで絞り込み
-    if selected_season and selected_season != NEW_ENTRY_LABEL and pd.notna(selected_season):
-        df_filtered_by_season = df_filtered_by_season[df_filtered_by_season['season'].astype(str) == str(selected_season)]
-
-    if df_filtered_by_season.empty:
-        return [NEW_ENTRY_LABEL]
-
-    types_set = set()
-
-    # 2a. UIで選択されたクラスが「自分のクラス」で、かつ選択されたデッキ名が「自分のデッキ」の場合の「自分のデッキタイプ」を収集
-    my_context_df = df_filtered_by_season[
-        (df_filtered_by_season['my_class'].astype(str) == str(selected_ui_class)) &
-        (df_filtered_by_season['my_deck'].astype(str) == str(selected_deck_name))
-    ]
-    if not my_context_df.empty and 'my_deck_type' in my_context_df.columns:
-        valid_items_my_type = my_context_df['my_deck_type'].astype(str).replace('', pd.NA).dropna()
-        types_set.update(t for t in valid_items_my_type.tolist() if t and t.lower() != 'nan')
-
-    # 2b. UIで選択されたクラスが「相手のクラス」で、かつ選択されたデッキ名が「相手のデッキ」の場合の「相手のデッキタイプ」を収集
-    opponent_context_df = df_filtered_by_season[
-        (df_filtered_by_season['opponent_class'].astype(str) == str(selected_ui_class)) &
-        (df_filtered_by_season['opponent_deck'].astype(str) == str(selected_deck_name))
-    ]
-    if not opponent_context_df.empty and 'opponent_deck_type' in opponent_context_df.columns:
-        valid_items_opponent_type = opponent_context_df['opponent_deck_type'].astype(str).replace('', pd.NA).dropna()
-        types_set.update(t for t in valid_items_opponent_type.tolist() if t and t.lower() != 'nan')
-
-    if not types_set:
-        return [NEW_ENTRY_LABEL]
-    return [NEW_ENTRY_LABEL] + sorted(list(types_set))
 # --- 分析用ヘルパー関数 ---
 def get_all_analyzable_deck_names(df):
     ### 変更点 ### 自分が使用したデッキ（my_deck）のみを分析対象とする
     my_decks = df['my_deck'].astype(str).replace('', pd.NA).dropna().unique()
     all_decks_set = set(my_decks) # opponent_decks の収集を削除
     return sorted([d for d in all_decks_set if d and d.lower() != 'nan'])
+
 def get_all_types_for_archetype(df, deck_name):
     ### 変更点 ### 注目デッキが「自分のデッキ」として使われた際の「自分のデッキの型」のみを収集
     if not deck_name or deck_name == SELECT_PLACEHOLDER or pd.isna(deck_name):
@@ -384,7 +458,7 @@ def get_all_types_for_archetype(df, deck_name):
     # ### 削除 ### opponent_deck や opponent_deck_type からの収集は不要
     valid_types = sorted([t for t in list(types) if t and t.lower() != 'nan'])
     return [ALL_TYPES_PLACEHOLDER] + valid_types
-# --- 分析セクション表示関数 ---
+
 # --- 分析セクション表示関数 ---
 def display_general_deck_performance(df_to_analyze):
     ### 変更点 ### 「自分の使用したデッキ」のパフォーマンス概要に変更
@@ -596,8 +670,7 @@ def display_overall_filtered_performance(df_to_analyze):
                   help=f"先攻 {total_first_games}戦 {wins_first}勝" if total_first_games > 0 else "データなし")
         # --- ▼▼▼ 「勝利時 平均決着T」の st.metric 表示を削除しました ▼▼▼ ---
         # st.metric("勝利時 平均決着T", ...) 
-        # --- ▲▲▲ 表示削除ここまで ▲▲▲ ---
-        
+        # --- ▲▲▲ 表示削除ここまで ▲▲▲ ---        
     with col2:
         st.metric("総勝利数", f"{total_wins} 勝")
         st.metric("後攻時勝率", 
@@ -606,7 +679,6 @@ def display_overall_filtered_performance(df_to_analyze):
         # --- ▼▼▼ 「敗北時 平均決着T」の st.metric 表示を削除しました ▼▼▼ ---
         # st.metric("敗北時 平均決着T", ...)
         # --- ▲▲▲ 表示削除ここまで ▲▲▲ ---
-
     with col3:
         st.metric("総敗北数", f"{total_losses} 敗")
         st.metric("総合勝率", f"{overall_win_rate:.1f}%" if overall_win_rate is not None else "N/A")
@@ -1292,129 +1364,34 @@ def main():
         for key in keys_to_reset_new_fields:
             if key in st.session_state: st.session_state[key] = ""
     # --- コールバック定義ここまで ---
-# main() 関数内の入力フォーム部分 (with st.expander(...) の中)
 
     with st.expander("戦績を入力する", expanded=True):
         st.subheader("対戦情報")
         # ... (シーズン、日付、環境、フォーマット、グループの入力は変更なし) ...
         season_options_input = get_unique_items_with_new_option(df, 'season')
         st.selectbox("シーズン *", season_options_input, key='inp_season_select',
-                     help="例: 2025前期, 〇〇カップ", on_change=on_season_select_change_input_form)
-        if st.session_state.get('inp_season_select') == NEW_ENTRY_LABEL:
-            st.text_input("新しいシーズン名を入力 *", value=st.session_state.get('inp_season_new', ""), key='inp_season_new')
-        
-        default_dt_for_input = datetime.today().date()
-        inp_date_value = st.session_state.get('inp_date', default_dt_for_input)
-        st.date_input("対戦日", value=inp_date_value, key='inp_date')
-
-        predefined_environments = ["ランクマッチ", "レート", "壁打ち"]
-        environment_options_input = get_unique_items_with_new_option(df, 'environment', predefined_options=predefined_environments)
-        st.selectbox("対戦環境 *", environment_options_input, key='inp_environment_select')
-        if st.session_state.get('inp_environment_select') == NEW_ENTRY_LABEL:
-            st.text_input("新しい対戦環境を入力 *", value=st.session_state.get('inp_environment_new', ""), key='inp_environment_new')
-
-        predefined_formats = ["ローテーション", "アンリミテッド", "2Pick"]
-        format_options_input = get_unique_items_with_new_option(df, 'format', predefined_options=predefined_formats)
-        st.selectbox("フォーマット *", format_options_input, key='inp_format_select', 
-                     on_change=on_format_select_change_input_form) 
-        if st.session_state.get('inp_format_select') == NEW_ENTRY_LABEL:
-            st.text_input("新しいフォーマット名を入力 *", value=st.session_state.get('inp_format_new', ""), key='inp_format_new')
-
-        predefined_groups = ["エメラルド", "トパーズ", "ルビー", "サファイア", "ダイヤモンド"]
-        group_options_input = get_unique_items_with_new_option(df, 'group', predefined_options=predefined_groups)
-        st.selectbox("グループ *", group_options_input, key='inp_group_select')
-        if st.session_state.get('inp_group_select') == NEW_ENTRY_LABEL:
-            st.text_input("新しいグループ名を入力 *", value=st.session_state.get('inp_group_new', ""), key='inp_group_new')
-
-        # ▼▼▼ 試合形式の選択と条件分岐 ▼▼▼
-        predefined_match_formats = ["BO1", "BO3", "BO5", "2デッキBO1"]
-        match_format_options_input = get_unique_items_with_new_option(df, 'match_format', predefined_options=predefined_match_formats)
-        st.selectbox("試合形式 *", match_format_options_input, key='inp_match_format_select',
-                     help="BO1: Best of 1, BO3: Best of 3, BO5: Best of 5, 2デッキBO1: 二つのクラスのデッキを持ち込み一つを選んで対戦")
-        if st.session_state.get('inp_match_format_select') == NEW_ENTRY_LABEL:
-            st.text_input("新しい試合形式を入力 *", value=st.session_state.get('inp_match_format_new', ""), key='inp_match_format_new')
-
-        # 現在選択されている値を取得
-        current_selected_season_input = st.session_state.get('inp_season_select')
-        current_selected_format_input = st.session_state.get('inp_format_select')
-        current_selected_match_format = st.session_state.get('inp_match_format_select')
-        
-        # 最終的な値を取得
-        current_selected_format_value = st.session_state.get('inp_format_select')
-        if current_selected_format_value == NEW_ENTRY_LABEL:
-            current_selected_format_value = st.session_state.get('inp_format_new', '')
-        
-        current_selected_match_format_value = st.session_state.get('inp_match_format_select')
-        if current_selected_match_format_value == NEW_ENTRY_LABEL:
-            current_selected_match_format_value = st.session_state.get('inp_match_format_new', '')
-        
-        is_2pick_format = (current_selected_format_value == "2Pick")
-        is_multi_deck_format = current_selected_match_format_value in ["2デッキBO1", "BO3", "BO5"]
-        # ▲▲▲ 試合形式選択ここまで ▲▲▲
-
-        # ▼▼▼ 入力UI の条件分岐 ▼▼▼
-        if is_multi_deck_format and not is_2pick_format:
-            # 複数デッキ対応の入力UI
-            multi_deck_data = show_multi_deck_input(current_selected_match_format_value, current_selected_format_value)
-        else:
-            # 従来のBO1または2Pick用の入力UI
-            col1, col2 = st.columns(2)
-            with col1:
-                st.subheader("自分のデッキ")
-                
-                st.selectbox("自分のクラス *", PREDEFINED_CLASSES, key='inp_my_class',
-                             index=PREDEFINED_CLASSES.index(st.session_state.inp_my_class) if 'inp_my_class' in st.session_state and st.session_state.inp_my_class in PREDEFINED_CLASSES else 0,
-                             on_change=on_my_class_select_change_input_form)
-                current_my_class_input = st.session_state.get('inp_my_class')
-
-                my_deck_name_options_input = get_decks_for_filter_conditions_input(df, current_selected_season_input, current_my_class_input, current_selected_format_value)
-                st.selectbox("使用デッキ *", my_deck_name_options_input, key='inp_my_deck', 
-                             on_change=on_my_deck_select_change_input_form, 
-                             disabled=is_2pick_format)
-                if st.session_state.get('inp_my_deck') == NEW_ENTRY_LABEL and not is_2pick_format:
-                    st.text_input("新しい使用デッキ名を入力 *", value=st.session_state.get('inp_my_deck_new', ""), key='inp_my_deck_new', disabled=is_2pick_format)
-                current_my_deck_name_input = st.session_state.get('inp_my_deck')
-
-                my_deck_type_options_input = get_types_for_filter_conditions_input(df, current_selected_season_input, current_my_class_input, current_my_deck_name_input, current_selected_format_value)
-                st.selectbox("使用デッキの型 *", my_deck_type_options_input, key='inp_my_deck_type', 
-                             disabled=is_2pick_format)
-                if st.session_state.get('inp_my_deck_type') == NEW_ENTRY_LABEL and not is_2pick_format:
-                    st.text_input("新しい使用デッキの型を入力 *", value=st.session_state.get('inp_my_deck_type_new', ""), key='inp_my_deck_type_new', disabled=is_2pick_format)
-
-            with col2:
-                st.subheader("対戦相手のデッキ")
-
-                st.selectbox("相手のクラス *", PREDEFINED_CLASSES, key='inp_opponent_class',
-                             index=PREDEFINED_CLASSES.index(st.session_state.inp_opponent_class) if 'inp_opponent_class' in st.session_state and st.session_state.inp_opponent_class in PREDEFINED_CLASSES else 0,
-                             on_change=on_opponent_class_select_change_input_form)
-                current_opponent_class_input = st.session_state.get('inp_opponent_class')
-                
-                opponent_deck_name_options_input = get_decks_for_filter_conditions_input(df, current_selected_season_input, current_opponent_class_input, current_selected_format_value)
-                st.selectbox("相手デッキ *", opponent_deck_name_options_input, key='inp_opponent_deck', 
+                     help="例: 2025前期, 〇〇カップ", on_change=
                              on_change=on_opponent_deck_select_change_input_form, 
                              disabled=is_2pick_format)
-                if st.session_state.get('inp_opponent_deck') == NEW_ENTRY_LABEL and not is_2pick_format:
-                    st.text_input("新しい相手デッキ名を入力 *", value=st.session_state.get('inp_opponent_deck_new', ""), key='inp_opponent_deck_new', disabled=is_2pick_format)
-                current_opponent_deck_name_input = st.session_state.get('inp_opponent_deck')
+        date_val = st.date_input("日付 *", value=datetime.today().date(), key='inp_date', disabled=is_2pick_format)
+        if isinstance(date_val, datetime): date_val = date_val.date() # datetimeオブジェクトからdateオブジェクトに変換
 
-                opponent_deck_type_options_input = get_types_for_filter_conditions_input(df, current_selected_season_input, current_opponent_class_input, current_opponent_deck_name_input, current_selected_format_value)
-                st.selectbox("相手デッキの型 *", opponent_deck_type_options_input, key='inp_opponent_deck_type', 
-                             disabled=is_2pick_format)
-                if st.session_state.get('inp_opponent_deck_type') == NEW_ENTRY_LABEL and not is_2pick_format:
-                    st.text_input("新しい相手デッキの型を入力 *", value=st.session_state.get('inp_opponent_deck_type_new', ""), key='inp_opponent_deck_type_new', disabled=is_2pick_format)
+        environment_options_input = get_unique_items_with_new_option(df, 'environment', ["ローテーション", "アンリミテッド", "スタンダード", "エボルヴ", "グランプリ", "カスタム"])
+        st.selectbox("対戦環境 *", environment_options_input, key='inp_environment_select',
+                     help="例: ローテーション, アンリミテッド", disabled=is_2pick_format)
         
-        # 従来の対戦結果入力
-        if not is_multi_deck_format:
-            st.subheader("対戦結果")
-            res_col1, res_col2, res_col3 = st.columns(3)
-            with res_col1:
-                st.selectbox("自分の先攻/後攻 *", ["先攻", "後攻"], key='inp_first_second', index=0 if 'inp_first_second' not in st.session_state else ["先攻", "後攻"].index(st.session_state.inp_first_second))
-            with res_col2:
-                st.selectbox("勝敗 *", ["勝ち", "負け"], key='inp_result', index=0 if 'inp_result' not in st.session_state else ["勝ち", "負け"].index(st.session_state.inp_result))
-            with res_col3:
-                st.number_input("決着ターン *", min_value=0, step=1, value=st.session_state.get('inp_finish_turn', 7), placeholder="ターン数を入力", key='inp_finish_turn',help="0はリタイア")
+        format_options_input = get_unique_items_with_new_option(df, 'format')
+        st.selectbox("フォーマット *", format_options_input, key='inp_format_select',
+                     help="例: スタンダード, エボルヴ", disabled=is_2pick_format)
         
-        st.text_area("対戦メモ (任意)", value=st.session_state.get('inp_memo', ""), key='inp_memo')
+        match_format_options_input = get_unique_items_with_new_option(df, 'match_format')
+        is_2pick_format = (st.session_state.get('inp_format_select') == "2Pick")
+        st.selectbox("試合形式 *", match_format_options_input, key='inp_match_format_select',
+                     help="例: 1試合制, 3試合制", disabled=is_2pick_format)
+        
+        group_options_input = get_unique_items_with_new_option(df, 'group')
+        st.selectbox("グループ *", group_options_input, key='inp_group_select',
+                     help="例: Aグループ, Bグループ", disabled=is_2pick_format)
 
         st.markdown("---")
         error_placeholder = st.empty()
