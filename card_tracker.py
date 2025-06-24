@@ -633,6 +633,89 @@ def show_analysis_section(original_df):
             st.session_state.ana_format_filter = [] 
     # --- ▲▲▲ 初期値設定ここまで ▲▲▲ ---
 
+    # ▼▼▼ 日付絞り込みのセクションを追加 ▼▼▼
+    st.markdown("**日付による絞り込み (任意)**")
+    
+    # 日付範囲での絞り込みオプション
+    date_filter_type = st.radio(
+        "日付絞り込み方法を選択:",
+        ["日付絞り込みなし", "期間指定", "特定日付指定"],
+        key='ana_date_filter_type',
+        horizontal=True
+    )
+    
+    selected_date_range = None
+    selected_specific_dates = None
+    
+    if date_filter_type == "期間指定":
+        # 利用可能な日付の範囲を取得
+        if 'date' in original_df.columns:
+            valid_dates = original_df['date'].dropna()
+            if not valid_dates.empty:
+                min_date = valid_dates.min().date() if hasattr(valid_dates.min(), 'date') else valid_dates.min()
+                max_date = valid_dates.max().date() if hasattr(valid_dates.max(), 'date') else valid_dates.max()
+                
+                col_start, col_end = st.columns(2)
+                with col_start:
+                    start_date = st.date_input(
+                        "開始日", 
+                        value=min_date,
+                        min_value=min_date,
+                        max_value=max_date,
+                        key='ana_start_date'
+                    )
+                with col_end:
+                    end_date = st.date_input(
+                        "終了日", 
+                        value=max_date,
+                        min_value=min_date,
+                        max_value=max_date,
+                        key='ana_end_date'
+                    )
+                
+                if start_date <= end_date:
+                    selected_date_range = (start_date, end_date)
+                else:
+                    st.error("開始日は終了日以前の日付を選択してください。")
+            else:
+                st.warning("有効な日付データが見つかりません。")
+    
+    elif date_filter_type == "特定日付指定":
+        # 利用可能な日付のリストを作成
+        if 'date' in original_df.columns:
+            valid_dates = original_df['date'].dropna()
+            if not valid_dates.empty:
+                # 日付を文字列に変換してソート
+                unique_dates = sorted([
+                    d.date() if hasattr(d, 'date') else d 
+                    for d in valid_dates.unique()
+                ])
+                
+                # 日付を文字列形式で表示用のオプションを作成
+                date_options = [d.strftime('%Y-%m-%d') for d in unique_dates]
+                
+                selected_date_strings = st.multiselect(
+                    "分析対象の日付を選択 (複数選択可):",
+                    options=date_options,
+                    key='ana_specific_dates',
+                    help="Ctrl(Cmd)キーを押しながらクリックで複数選択できます"
+                )
+                
+                if selected_date_strings:
+                    # 文字列を日付オブジェクトに変換
+                    try:
+                        selected_specific_dates = [
+                            datetime.strptime(date_str, '%Y-%m-%d').date() 
+                            for date_str in selected_date_strings
+                        ]
+                    except ValueError as e:
+                        st.error(f"日付の変換に失敗しました: {e}")
+            else:
+                st.warning("有効な日付データが見つかりません。")
+    
+    st.markdown("---")
+    # ▲▲▲ 日付絞り込みセクション追加ここまで ▲▲▲
+
     all_seasons = [SELECT_PLACEHOLDER] + sorted([s for s in original_df['season'].astype(str).replace('', pd.NA).dropna().unique() if s and s.lower() != 'nan'])
     selected_season_for_analysis = st.selectbox("シーズンで絞り込み (任意):", options=all_seasons, key='ana_season_filter')
 
@@ -645,7 +728,26 @@ def show_analysis_section(original_df):
     all_groups = [SELECT_PLACEHOLDER] + sorted([g for g in original_df['group'].astype(str).replace('', pd.NA).dropna().unique() if g and g.lower() != 'nan'])
     selected_groups = st.multiselect("グループで絞り込み (任意):", options=all_groups, key='ana_group_filter')
 
+    # ▼▼▼ 日付フィルタリングを含むデータ絞り込み処理 ▼▼▼
     df_for_analysis = original_df.copy()
+    
+    # 日付による絞り込み
+    if date_filter_type == "期間指定" and selected_date_range:
+        start_date, end_date = selected_date_range
+        if 'date' in df_for_analysis.columns:
+            # 日付列をdatetimeに変換してから比較
+            df_for_analysis['date'] = pd.to_datetime(df_for_analysis['date'], errors='coerce')
+            mask = (df_for_analysis['date'].dt.date >= start_date) & (df_for_analysis['date'].dt.date <= end_date)
+            df_for_analysis = df_for_analysis[mask]
+    
+    elif date_filter_type == "特定日付指定" and selected_specific_dates:
+        if 'date' in df_for_analysis.columns:
+            # 日付列をdatetimeに変換してから比較
+            df_for_analysis['date'] = pd.to_datetime(df_for_analysis['date'], errors='coerce')
+            mask = df_for_analysis['date'].dt.date.isin(selected_specific_dates)
+            df_for_analysis = df_for_analysis[mask]
+    
+    # 他の条件での絞り込み
     if selected_season_for_analysis and selected_season_for_analysis != SELECT_PLACEHOLDER:
         df_for_analysis = df_for_analysis[df_for_analysis['season'] == selected_season_for_analysis]
     if selected_environments:
@@ -654,12 +756,53 @@ def show_analysis_section(original_df):
         df_for_analysis = df_for_analysis[df_for_analysis['format'].isin(selected_formats)]
     if selected_groups:
         df_for_analysis = df_for_analysis[df_for_analysis['group'].isin(selected_groups)]
+    # ▲▲▲ 絞り込み処理修正ここまで ▲▲▲
 
     if df_for_analysis.empty:
-        if (selected_season_for_analysis and selected_season_for_analysis != SELECT_PLACEHOLDER) or selected_environments or selected_formats or selected_groups:
-            st.warning("選択された絞り込み条件に合致するデータがありません。")
-        else: st.info("分析対象のデータがありません。")
+        conditions_applied = []
+        if date_filter_type == "期間指定" and selected_date_range:
+            conditions_applied.append(f"日付: {selected_date_range[0]} ～ {selected_date_range[1]}")
+        elif date_filter_type == "特定日付指定" and selected_specific_dates:
+            date_strs = [d.strftime('%Y-%m-%d') for d in selected_specific_dates]
+            conditions_applied.append(f"日付: {', '.join(date_strs)}")
+        if selected_season_for_analysis and selected_season_for_analysis != SELECT_PLACEHOLDER:
+            conditions_applied.append(f"シーズン: {selected_season_for_analysis}")
+        if selected_environments:
+            conditions_applied.append(f"対戦環境: {', '.join(selected_environments)}")
+        if selected_formats:
+            conditions_applied.append(f"フォーマット: {', '.join(selected_formats)}")
+        if selected_groups:
+            conditions_applied.append(f"グループ: {', '.join(selected_groups)}")
+        
+        if conditions_applied:
+            st.warning(f"選択された絞り込み条件に合致するデータがありません。\n適用された条件: {' | '.join(conditions_applied)}")
+        else: 
+            st.info("分析対象のデータがありません。")
         return
+
+    # ▼▼▼ 絞り込み結果の表示 ▼▼▼
+    if date_filter_type != "日付絞り込みなし" or selected_season_for_analysis != SELECT_PLACEHOLDER or selected_environments or selected_formats or selected_groups:
+        conditions_summary = []
+        if date_filter_type == "期間指定" and selected_date_range:
+            conditions_summary.append(f"📅 {selected_date_range[0]} ～ {selected_date_range[1]}")
+        elif date_filter_type == "特定日付指定" and selected_specific_dates:
+            if len(selected_specific_dates) <= 3:
+                date_strs = [d.strftime('%Y-%m-%d') for d in selected_specific_dates]
+                conditions_summary.append(f"📅 {', '.join(date_strs)}")
+            else:
+                conditions_summary.append(f"📅 {len(selected_specific_dates)}日分のデータ")
+        if selected_season_for_analysis and selected_season_for_analysis != SELECT_PLACEHOLDER:
+            conditions_summary.append(f"🏆 {selected_season_for_analysis}")
+        if selected_environments:
+            conditions_summary.append(f"🎮 {', '.join(selected_environments)}")
+        if selected_formats:
+            conditions_summary.append(f"📋 {', '.join(selected_formats)}")
+        if selected_groups:
+            conditions_summary.append(f"💎 {', '.join(selected_groups)}")
+        
+        if conditions_summary:
+            st.info(f"絞り込み条件: {' | '.join(conditions_summary)} | 対象データ: {len(df_for_analysis)}件")
+    # ▲▲▲ 絞り込み結果表示ここまで ▲▲▲
 
     st.subheader("使用デッキ詳細分析") # タイトル変更
     def reset_focus_type_callback():
@@ -730,7 +873,7 @@ def show_analysis_section(original_df):
             st.metric("総合勝率", f"{win_rate_for_focus_deck:.1f}%")
             st.metric("勝利時平均ターン", f"{avg_win_finish_turn_val:.1f} T" if avg_win_finish_turn_val is not None else "N/A")
 
- ### 追加部分ここから ###
+        ### 追加部分ここから ###
         st.markdown("---")
         st.subheader(f"「{focus_deck_display_name}」使用時の対戦相手傾向")
 
