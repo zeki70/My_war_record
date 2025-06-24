@@ -1370,7 +1370,7 @@ def main():
         # ... (シーズン、日付、環境、フォーマット、グループの入力は変更なし) ...
         season_options_input = get_unique_items_with_new_option(df, 'season')
         st.selectbox("シーズン *", season_options_input, key='inp_season_select',
-                     help="例: 2025前期, 〇〇カップ", on_change=
+                     help="例: 2025前期, 〇〇カップ", 
                              on_change=on_opponent_deck_select_change_input_form, 
                              disabled=is_2pick_format)
         date_val = st.date_input("日付 *", value=datetime.today().date(), key='inp_date', disabled=is_2pick_format)
