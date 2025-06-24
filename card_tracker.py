@@ -14,8 +14,8 @@ st.set_page_config(layout="wide")
 SPREADSHEET_NAME_DISPLAY = "Shadowverse戦績管理" # 変更
 SPREADSHEET_ID = st.secrets["gcp_service_account"]["SPREADSHEET_ID"]
 WORKSHEET_NAME = "シート1"
-COLUMNS = [ # 'format' を追加
-    'season', 'date', 'environment', 'format', 'group', 'my_deck', 'my_deck_type','my_class', 
+COLUMNS = [ # 'match_format' を追加
+    'season', 'date', 'environment', 'format', 'match_format', 'group', 'my_deck', 'my_deck_type','my_class', 
     'opponent_deck', 'opponent_deck_type','opponent_class',   'first_second',
     'result', 'finish_turn', 'memo'
 ]
@@ -140,10 +140,10 @@ def load_data(spreadsheet_id, worksheet_name):
         if 'finish_turn' in df.columns:
             df['finish_turn'] = pd.to_numeric(df['finish_turn'], errors='coerce').astype('Int64')
 
-        # 文字列として扱う列の処理 (my_class, opponent_class を含む)
+        # 文字列として扱う列の処理 (match_format を追加)
         string_cols = ['my_deck_type', 'my_class', 'opponent_deck_type', 'opponent_class',
                        'my_deck', 'opponent_deck', 'season', 'memo',
-                       'first_second', 'result', 'environment', 'format', 'group']
+                       'first_second', 'result', 'environment', 'format', 'match_format', 'group']
         for col in string_cols:
             if col in df.columns:
                 df[col] = df[col].astype(str).fillna('')
@@ -759,6 +759,11 @@ def show_analysis_section(original_df):
     all_formats = [SELECT_PLACEHOLDER] + sorted([f for f in original_df['format'].astype(str).replace('', pd.NA).dropna().unique() if f and f.lower() != 'nan'])
     selected_formats = st.multiselect("フォーマットで絞り込み (任意):", options=all_formats, key='ana_format_filter')
 
+    # ▼▼▼ 試合形式での絞り込みを追加 ▼▼▼
+    all_match_formats = [SELECT_PLACEHOLDER] + sorted([mf for mf in original_df['match_format'].astype(str).replace('', pd.NA).dropna().unique() if mf and mf.lower() != 'nan'])
+    selected_match_formats = st.multiselect("試合形式で絞り込み (任意):", options=all_match_formats, key='ana_match_format_filter')
+    # ▲▲▲ 試合形式絞り込み追加ここまで ▲▲▲
+
     all_groups = [SELECT_PLACEHOLDER] + sorted([g for g in original_df['group'].astype(str).replace('', pd.NA).dropna().unique() if g and g.lower() != 'nan'])
     selected_groups = st.multiselect("グループで絞り込み (任意):", options=all_groups, key='ana_group_filter')
 
@@ -788,6 +793,8 @@ def show_analysis_section(original_df):
         df_for_analysis = df_for_analysis[df_for_analysis['environment'].isin(selected_environments)]
     if selected_formats:
         df_for_analysis = df_for_analysis[df_for_analysis['format'].isin(selected_formats)]
+    if selected_match_formats:
+        df_for_analysis = df_for_analysis[df_for_analysis['match_format'].isin(selected_match_formats)]
     if selected_groups:
         df_for_analysis = df_for_analysis[df_for_analysis['group'].isin(selected_groups)]
     # ▲▲▲ 絞り込み処理修正ここまで ▲▲▲
@@ -805,6 +812,8 @@ def show_analysis_section(original_df):
             conditions_applied.append(f"対戦環境: {', '.join(selected_environments)}")
         if selected_formats:
             conditions_applied.append(f"フォーマット: {', '.join(selected_formats)}")
+        if selected_match_formats:
+            conditions_applied.append(f"試合形式: {', '.join(selected_match_formats)}")
         if selected_groups:
             conditions_applied.append(f"グループ: {', '.join(selected_groups)}")
         
@@ -815,7 +824,7 @@ def show_analysis_section(original_df):
         return
 
     # ▼▼▼ 絞り込み結果の表示 ▼▼▼
-    if date_filter_type != "日付絞り込みなし" or selected_season_for_analysis != SELECT_PLACEHOLDER or selected_environments or selected_formats or selected_groups:
+    if date_filter_type != "日付絞り込みなし" or selected_season_for_analysis != SELECT_PLACEHOLDER or selected_environments or selected_formats or selected_match_formats or selected_groups:
         conditions_summary = []
         if date_filter_type == "期間指定" and selected_date_range:
             conditions_summary.append(f"📅 {selected_date_range[0]} ～ {selected_date_range[1]}")
@@ -831,6 +840,8 @@ def show_analysis_section(original_df):
             conditions_summary.append(f"🎮 {', '.join(selected_environments)}")
         if selected_formats:
             conditions_summary.append(f"📋 {', '.join(selected_formats)}")
+        if selected_match_formats:
+            conditions_summary.append(f"🎯 {', '.join(selected_match_formats)}")
         if selected_groups:
             conditions_summary.append(f"💎 {', '.join(selected_groups)}")
         
@@ -1180,6 +1191,7 @@ def main():
                  # dataも意図的に含めない
                 'inp_environment_select': 'environment',
                 'inp_format_select': 'format',
+                'inp_match_format_select': 'match_format',
                 'inp_group_select': 'group',
                 'inp_my_class': 'my_class',
                 'inp_my_deck': 'my_deck',
@@ -1320,6 +1332,15 @@ def main():
             st.text_input("新しいグループ名を入力 *", value=st.session_state.get('inp_group_new', ""), key='inp_group_new')
         # ▲▲▲ グループ追加ここまで ▲▲▲
 
+        # ▼▼▼ 試合形式の選択肢を追加 ▼▼▼
+        predefined_match_formats = ["BO1", "BO3", "BO5", "2デッキBO1"]
+        match_format_options_input = get_unique_items_with_new_option(df, 'match_format', predefined_options=predefined_match_formats)
+        st.selectbox("試合形式 *", match_format_options_input, key='inp_match_format_select',
+                     help="BO1: Best of 1, BO3: Best of 3, BO5: Best of 5, 2デッキBO1: 二つのクラスのデッキを持ち込み一つを選んで対戦")
+        if st.session_state.get('inp_match_format_select') == NEW_ENTRY_LABEL:
+            st.text_input("新しい試合形式を入力 *", value=st.session_state.get('inp_match_format_new', ""), key='inp_match_format_new')
+        # ▲▲▲ 試合形式追加ここまで ▲▲▲
+
         # 現在選択されているシーズンとクラスを後の処理で使うために取得
         # ▼▼▼ この部分で必要な変数を定義します ▼▼▼
         current_selected_season_input = st.session_state.get('inp_season_select')
@@ -1416,6 +1437,11 @@ def main():
             final_group = st.session_state.get('inp_group_new', '') if st.session_state.get('inp_group_select') == NEW_ENTRY_LABEL else st.session_state.get('inp_group_select')
             if final_group == NEW_ENTRY_LABEL: final_group = ''
 
+            # ▼▼▼ 試合形式の取得 ▼▼▼
+            final_match_format = st.session_state.get('inp_match_format_new', '') if st.session_state.get('inp_match_format_select') == NEW_ENTRY_LABEL else st.session_state.get('inp_match_format_select')
+            if final_match_format == NEW_ENTRY_LABEL: final_match_format = ''
+            # ▲▲▲ 試合形式取得ここまで ▲▲▲
+
             final_my_deck = st.session_state.get('inp_my_deck_new', '') if st.session_state.get('inp_my_deck') == NEW_ENTRY_LABEL else st.session_state.get('inp_my_deck')
             if final_my_deck == NEW_ENTRY_LABEL: final_my_deck = ''
 
@@ -1470,6 +1496,7 @@ def main():
             if not final_season: error_messages.append("シーズンを入力または選択してください。")
             if not final_environment: error_messages.append("対戦環境を選択または入力してください。")
             if not final_format: error_messages.append("フォーマットを選択または入力してください。")
+            if not final_match_format: error_messages.append("試合形式を選択または入力してください。")
             if not final_group: error_messages.append("グループを選択または入力してください。")
             
             if not final_my_class: error_messages.append("自分のクラスを選択してください。")
@@ -1492,7 +1519,7 @@ def main():
                 error_placeholder.empty()
                 new_record_data = {
                     'season': final_season, 'date': pd.to_datetime(date_val), # ここで final_season, date_val が使われます
-                    'environment': final_environment, 'format': final_format, 'group': final_group,
+                    'environment': final_environment, 'format': final_format, 'match_format': final_match_format, 'group': final_group,
                     'my_deck': final_my_deck, 'my_deck_type': final_my_deck_type,
                     'my_class': final_my_class,
                     'opponent_deck': final_opponent_deck, 'opponent_deck_type': final_opponent_deck_type,
@@ -1523,6 +1550,7 @@ def main():
                         'inp_season_new',
                         'inp_environment_new',
                         'inp_format_new',
+                        'inp_match_format_new',
                         'inp_group_new',
                         'inp_my_deck_new',
                         'inp_my_deck_type_new',
@@ -1579,10 +1607,10 @@ def main():
     if df.empty:
         st.info("まだ戦績データがありません。")
     else:
-        display_columns = ['date', 'season', 'environment', 'format', 'group',
+        display_columns = ['date', 'season', 'environment', 'format', 'match_format', 'group',
                         'my_deck', 'my_deck_type', 'my_class', 
                         'opponent_deck', 'opponent_deck_type', 'opponent_class', 
-                        'first_second', 'result', 'finish_turn', 'memo'] # group列を追加
+                        'first_second', 'result', 'finish_turn', 'memo'] # match_format列を追加
         # ... (以降のデータフレーム表示ロジックは既存のものを流用し、新しい列が表示されるようにする) ...
         cols_to_display_actual = [col for col in display_columns if col in df.columns]
         df_display = df.copy()
