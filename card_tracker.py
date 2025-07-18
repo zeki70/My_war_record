@@ -660,23 +660,25 @@ def show_analysis_section(original_df):
     selected_groups = st.multiselect("グループで絞り込み (任意):", options=all_groups, key='ana_group_filter')
 
     df_for_analysis = original_df.copy()
+
+    # Create a dedicated 'date' column for filtering to avoid timestamp issues.
+    if 'timestamp' in df_for_analysis.columns:
+        df_for_analysis['date_for_filter'] = pd.to_datetime(df_for_analysis['timestamp'], errors='coerce').dt.date
     
+    # 日付による絞り込み
     if date_filter_type == "期間指定" and selected_date_range:
         start_date, end_date = selected_date_range
-        if 'timestamp' in df_for_analysis.columns:
-            # Ensure the timestamp column is in datetime format
-            df_for_analysis['timestamp'] = pd.to_datetime(df_for_analysis['timestamp'], errors='coerce')
-            # Normalize to date for comparison
-            mask = (df_for_analysis['timestamp'].dt.date >= start_date) & (df_for_analysis['timestamp'].dt.date <= end_date)
-            df_for_analysis = df_for_analysis[mask]
+        if 'date_for_filter' in df_for_analysis.columns:
+            # Filter rows where the date is within the selected range
+            df_for_analysis = df_for_analysis[
+                (df_for_analysis['date_for_filter'] >= start_date) & 
+                (df_for_analysis['date_for_filter'] <= end_date)
+            ]
     
     elif date_filter_type == "特定日付指定" and selected_specific_dates:
-        if 'timestamp' in df_for_analysis.columns:
-            # Ensure the timestamp column is in datetime format
-            df_for_analysis['timestamp'] = pd.to_datetime(df_for_analysis['timestamp'], errors='coerce')
-            # Normalize to date for comparison
-            mask = df_for_analysis['timestamp'].dt.date.isin(selected_specific_dates)
-            df_for_analysis = df_for_analysis[mask]
+        if 'date_for_filter' in df_for_analysis.columns:
+            # Filter rows where the date is in the list of selected dates
+            df_for_analysis = df_for_analysis[df_for_analysis['date_for_filter'].isin(selected_specific_dates)]
     
     if selected_season_for_analysis and selected_season_for_analysis != SELECT_PLACEHOLDER:
         df_for_analysis = df_for_analysis[df_for_analysis['season'] == selected_season_for_analysis]
