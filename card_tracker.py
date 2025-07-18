@@ -664,13 +664,17 @@ def show_analysis_section(original_df):
     if date_filter_type == "期間指定" and selected_date_range:
         start_date, end_date = selected_date_range
         if 'timestamp' in df_for_analysis.columns:
+            # Ensure the timestamp column is in datetime format
             df_for_analysis['timestamp'] = pd.to_datetime(df_for_analysis['timestamp'], errors='coerce')
+            # Normalize to date for comparison
             mask = (df_for_analysis['timestamp'].dt.date >= start_date) & (df_for_analysis['timestamp'].dt.date <= end_date)
             df_for_analysis = df_for_analysis[mask]
     
     elif date_filter_type == "特定日付指定" and selected_specific_dates:
         if 'timestamp' in df_for_analysis.columns:
+            # Ensure the timestamp column is in datetime format
             df_for_analysis['timestamp'] = pd.to_datetime(df_for_analysis['timestamp'], errors='coerce')
+            # Normalize to date for comparison
             mask = df_for_analysis['timestamp'].dt.date.isin(selected_specific_dates)
             df_for_analysis = df_for_analysis[mask]
     
