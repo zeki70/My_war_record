@@ -619,28 +619,29 @@ def show_analysis_section(original_df):
         if 'timestamp' in original_df.columns:
             valid_dates = original_df['timestamp'].dropna()
             if not valid_dates.empty:
-                unique_dates = sorted([
-                    d.date() if hasattr(d, 'date') else d 
-                    for d in valid_dates.unique()
-                ])
+                if 'selected_dates' not in st.session_state:
+                    st.session_state.selected_dates = []
+
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    new_date = st.date_input("日付を選択", key="date_selector_for_specific")
+                with col2:
+                    st.write("\n") # ボタンを中央に配置するためのスペーサー
+                    if st.button("日付を追加"):
+                        if new_date not in st.session_state.selected_dates:
+                            st.session_state.selected_dates.append(new_date)
+                            st.session_state.selected_dates.sort()
                 
-                date_options = [d.strftime('%Y-%m-%d') for d in unique_dates]
+                if st.session_state.selected_dates:
+                    st.write("選択中の日付:")
+                    selected_dates_str = [d.strftime("%Y-%m-%d") for d in st.session_state.selected_dates]
+                    st.write(selected_dates_str)
+                    if st.button("選択をクリア"):
+                        st.session_state.selected_dates = []
+                        st.rerun()
                 
-                selected_date_strings = st.multiselect(
-                    "分析対象の日付を選択 (複数選択可):",
-                    options=date_options,
-                    key='ana_specific_dates',
-                    help="Ctrl(Cmd)キーを押しながらクリックで複数選択できます"
-                )
-                
-                if selected_date_strings:
-                    try:
-                        selected_specific_dates = [
-                            datetime.strptime(date_str, '%Y-%m-%d').date() 
-                            for date_str in selected_date_strings
-                        ]
-                    except ValueError as e:
-                        st.error(f"日付の変換に失敗しました: {e}")
+                selected_specific_dates = st.session_state.selected_dates
+
             else:
                 st.warning("有効な日付データが見つかりません。")
     
