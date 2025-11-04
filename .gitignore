@@ -1,1 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+streamlit_test_env/
+venv/
+env/
+ENV/
+
+# Secrets and service account
+service_account.json
+.env
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
 service_account.json

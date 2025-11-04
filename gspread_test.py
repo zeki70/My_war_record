@@ -1,13 +1,16 @@
+import os
 import gspread
 from google.oauth2.service_account import Credentials
 
+# Prefer reading sensitive values from environment variables or Streamlit Secrets.
 SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive.file'
 ]
-SERVICE_ACCOUNT_FILE = 'service_account.json' # 実際のキーファイル名
-SPREADSHEET_ID = "1V9guZQbpV8UDU_W2pC1WBsE1hOHqIO4yTsG8oGzaPQU"
-WORKSHEET_NAME = "シート1" # ★★★ Waic-戦績のシート名 ★★★
+SERVICE_ACCOUNT_FILE = os.environ.get('SERVICE_ACCOUNT_FILE', 'service_account.json')
+# Do NOT hardcode spreadsheet IDs in source. Read from env as fallback placeholder.
+SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID', '<YOUR_SPREADSHEET_ID>')
+WORKSHEET_NAME = os.environ.get('WORKSHEET_NAME', 'シート1')
 
 try:
     creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)

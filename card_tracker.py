@@ -25,20 +25,23 @@ ALL_TYPES_PLACEHOLDER = "全タイプ" # 分析用
 
 # --- パスワード認証のための設定 ---
 def get_app_password():
+    # Fail closed: require password to be set in Streamlit Secrets
     if hasattr(st, 'secrets') and "app_credentials" in st.secrets and "password" in st.secrets["app_credentials"]:
         return st.secrets["app_credentials"]["password"]
     else:
-        st.warning("アプリケーションパスワードがSecretsに設定されていません。ローカルテスト用に 'test_password' を使用します。デプロイ時には必ずSecretsを設定してください。")
-        return "test_password"
+        st.error("アプリケーションパスワードがStreamlit Secretsに設定されていません。デプロイ前に st.secrets['app_credentials']['password'] を設定してください。")
+        st.stop()
 CORRECT_PASSWORD = get_app_password()
 
 # ★★★ ここにクッキーマネージャの初期化コードを配置 ★★★
 # st.secrets から暗号化キーを取得 (事前にStreamlit CloudのSecretsに設定してください)
 # 例: [app_credentials]
 #      cookie_encryption_key = "あなたの生成した秘密のキー"
-cookie_encryption_key = st.secrets.get("app_credentials", {}).get("cookie_encryption_key", "FALLBACK_KEY_CHANGE_THIS_NOW_123!") # Secretsにキーがない場合のフォールバック(非推奨)
-if cookie_encryption_key == "FALLBACK_KEY_CHANGE_THIS_NOW_123!":
-    st.warning("クッキー暗号化キーがデフォルトのフォールバック値です。必ずSecretsで 'cookie_encryption_key' を設定してください。")
+if hasattr(st, 'secrets') and "app_credentials" in st.secrets and "cookie_encryption_key" in st.secrets["app_credentials"]:
+    cookie_encryption_key = st.secrets["app_credentials"]["cookie_encryption_key"]
+else:
+    st.error("クッキー暗号化キーがStreamlit Secretsに設定されていません。デプロイ前に st.secrets['app_credentials']['cookie_encryption_key'] を設定してください。")
+    st.stop()
 
 cookies = EncryptedCookieManager(
     password=cookie_encryption_key, # Secretsから取得したキーを使用
@@ -997,8 +1000,9 @@ def main():
 
     if not st.session_state.authenticated:
         try:
-            stored_password_from_cookie = cookies.get('auth_password')
-            if stored_password_from_cookie and stored_password_from_cookie == CORRECT_PASSWORD:
+            # Do NOT store the raw password in cookies. Use a simple persistent auth flag instead.
+            stored_auth_flag = cookies.get('auth')
+            if stored_auth_flag and stored_auth_flag == '1':
                 st.session_state.authenticated = True
         except Exception as e:
             st.warning(f"クッキーの読み取り中にエラーが発生しました: {e}")
@@ -1015,7 +1019,8 @@ def main():
                 if login_button:
                     if password_input == CORRECT_PASSWORD:
                         st.session_state.authenticated = True
-                        cookies['auth_password'] = CORRECT_PASSWORD
+                        # Store only a simple auth flag in the encrypted cookie. Never store the password itself.
+                        cookies['auth'] = '1'
                         cookies.save()
                         st.rerun()
                     else:
