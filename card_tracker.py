@@ -830,6 +830,42 @@ def show_analysis_section(original_df):
                             last_fail[f'{col} (parsed)'] = parse_timestamp_series(last_fail[f'{col} (raw)']).astype(str)
                             st.write(f"列: {col} — 解析失敗行 (末尾から)")
                             st.dataframe(last_fail, width='stretch')
+                            # Additional option: fetch the actual sheet rows for these indices
+                            try:
+                                if st.button(f"シート上の該当行を表示: {col}"):
+                                    # Attempt to fetch corresponding sheet rows from Google Sheets
+                                    try:
+                                        client = get_gspread_client()
+                                        if client is None:
+                                            st.error("Google Sheets クライアントが取得できませんでした。認証を確認してください。")
+                                        elif not SPREADSHEET_ID:
+                                            st.error("SPREADSHEET_ID が設定されていません。secrets を確認してください。")
+                                        else:
+                                            try:
+                                                sheet = client.open_by_key(SPREADSHEET_ID).worksheet(WORKSHEET_NAME)
+                                            except Exception as e_open:
+                                                st.error(f"スプレッドシートを開けませんでした: {e_open}")
+                                                sheet = None
+
+                                            if sheet is not None:
+                                                rows_to_show = []
+                                                for ridx in last_fail['row_index'].tolist():
+                                                    # Convert dataframe index to sheet row number. Assumes header is row 1 and data starts at row 2.
+                                                    sheet_row = int(ridx) + 2
+                                                    try:
+                                                        row_vals = sheet.row_values(sheet_row)
+                                                    except Exception as e_row:
+                                                        row_vals = [f"取得エラー: {e_row}"]
+                                                    rows_to_show.append((sheet_row, row_vals))
+
+                                                # Display fetched rows
+                                                fetch_df = pd.DataFrame([{'sheet_row': r[0], 'values': r[1]} for r in rows_to_show])
+                                                st.write("シートから取得した生行データ（sheet_row, values）:")
+                                                st.dataframe(fetch_df, width='stretch')
+                                    except Exception as e_fetch:
+                                        st.error(f"シート取得処理でエラー: {e_fetch}")
+                            except Exception:
+                                pass
         except Exception as e:
             try:
                 st.error(f"デバッグ出力でエラーが発生しました: {e}")
