@@ -135,6 +135,33 @@ def load_data(spreadsheet_id, worksheet_name):
                     except Exception:
                         pass
 
+        # Heuristic: if still no 'timestamp' column, try to detect a column whose values look like datetimes
+        if df is not None and 'timestamp' not in df.columns:
+            detected_col = None
+            for col in df.columns:
+                try:
+                    parsed = parse_timestamp_series(df[col])
+                except Exception:
+                    parsed = pd.Series([pd.NaT] * len(df))
+                # consider this column a timestamp if we parsed at least one non-NaT with reasonable year
+                non_null = parsed.dropna()
+                if not non_null.empty:
+                    years = non_null.dt.year
+                    # require at least one year in plausible range
+                    if ((years >= 1900) & (years <= 2100)).any():
+                        detected_col = col
+                        break
+            if detected_col:
+                try:
+                    df = df.rename(columns={detected_col: 'timestamp'})
+                    # show a short notice in Streamlit so it's visible during runtime
+                    try:
+                        st.info(f"Detected timestamp column: '{detected_col}' -> using as 'timestamp'.")
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+
         # COLUMNS に基づいて DataFrame を整形し、不足列は適切な型で追加
         # この処理は、get_as_dataframe がヘッダー行を正しく解釈した後に実行される
         temp_df = pd.DataFrame(columns=COLUMNS)
