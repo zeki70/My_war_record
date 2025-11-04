@@ -1661,11 +1661,11 @@ def main():
         else:
             df_display_sorted = df_display.reset_index(drop=True)
     st.dataframe(df_display_sorted[cols_to_display_actual])
-        csv_export = df.to_csv(index=False).encode('utf-8-sig')
-        st.download_button(
-            label="戦績データをCSVでダウンロード", data=csv_export,
-            file_name='game_records_download.csv', mime='text/csv',
-        )
+    csv_export = df.to_csv(index=False).encode('utf-8-sig')
+    st.download_button(
+        label="戦績データをCSVでダウンロード", data=csv_export,
+        file_name='game_records_download.csv', mime='text/csv',
+    )
 
 if __name__ == '__main__':
     main()
