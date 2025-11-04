@@ -752,6 +752,12 @@ def show_analysis_section(original_df):
     
     st.markdown("---")
 
+    # Optional debug: show raw vs parsed samples for columns that look like datetimes
+    try:
+        debug_ts = st.checkbox("デバッグ: timestamp パースの先頭サンプルを表示", key='debug_timestamp_parsing')
+    except Exception:
+        debug_ts = False
+
     all_seasons = [SELECT_PLACEHOLDER] + sorted([s for s in original_df['season'].astype(str).replace('', pd.NA).dropna().unique() if s and s.lower() != 'nan'])
     selected_season_for_analysis = st.selectbox("シーズンで絞り込み (任意):", options=all_seasons, key='ana_season_filter')
 
@@ -765,6 +771,35 @@ def show_analysis_section(original_df):
     selected_groups = st.multiselect("グループで絞り込み (任意):", options=all_groups, key='ana_group_filter')
 
     df_for_analysis = original_df.copy()
+
+    # If debug requested, display candidates and sample raw->parsed for inspection
+    if debug_ts and not original_df.empty:
+        try:
+            st.write("---")
+            st.write("デバッグ: 日時解析の候補カラムと先頭サンプル（raw -> parsed）")
+            candidate_cols = []
+            for col in original_df.columns:
+                try:
+                    parsed_col = parse_timestamp_series(original_df[col])
+                except Exception:
+                    parsed_col = pd.Series([pd.NaT] * len(original_df))
+                if parsed_col.dropna().any():
+                    candidate_cols.append(col)
+
+            if not candidate_cols:
+                st.write("日時らしいカラムは見つかりませんでした。")
+            else:
+                rows = min(10, len(original_df))
+                sample = pd.DataFrame()
+                for col in candidate_cols:
+                    sample[f"{col} (raw)"] = original_df[col].astype(str).reset_index(drop=True).head(rows)
+                    sample[f"{col} (parsed)"] = parse_timestamp_series(original_df[col]).astype(str).reset_index(drop=True).head(rows)
+                st.dataframe(sample, width='stretch')
+        except Exception as e:
+            try:
+                st.error(f"デバッグ出力でエラーが発生しました: {e}")
+            except Exception:
+                pass
 
     # Create a dedicated 'date' column for filtering to avoid timestamp issues.
     if 'timestamp' in df_for_analysis.columns:
