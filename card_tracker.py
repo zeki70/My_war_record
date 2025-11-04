@@ -795,6 +795,22 @@ def show_analysis_section(original_df):
                     sample[f"{col} (raw)"] = original_df[col].astype(str).reset_index(drop=True).head(rows)
                     sample[f"{col} (parsed)"] = parse_timestamp_series(original_df[col]).astype(str).reset_index(drop=True).head(rows)
                 st.dataframe(sample, width='stretch')
+                # Additionally show failing rows from the end (ユーザーの要望: 後ろからデバッグ)
+                st.write("")
+                st.write("---")
+                st.write("デバッグ: 解析に失敗している行（下から最大20件） — raw と parsed を表示します")
+                for col in candidate_cols:
+                    parsed_col = parse_timestamp_series(original_df[col])
+                    mask_fail = parsed_col.isna()
+                    if mask_fail.any():
+                        failing = original_df.loc[mask_fail, col].astype(str).reset_index()
+                        # show last up to 20 failing rows
+                        if not failing.empty:
+                            last_fail = failing.tail(20).copy()
+                            last_fail.columns = ['row_index', f'{col} (raw)']
+                            last_fail[f'{col} (parsed)'] = parse_timestamp_series(last_fail[f'{col} (raw)']).astype(str)
+                            st.write(f"列: {col} — 解析失敗行 (末尾から)")
+                            st.dataframe(last_fail, width='stretch')
         except Exception as e:
             try:
                 st.error(f"デバッグ出力でエラーが発生しました: {e}")
