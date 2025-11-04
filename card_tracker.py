@@ -278,6 +278,25 @@ def parse_timestamp_series(series):
 
     return parsed
 
+
+def extract_date_substring(text):
+    """Return a date-like substring from text if present, else None.
+    Matches patterns like 'YYYY/MM/DD HH:MM:SS', 'YYYY-MM-DD HH:MM', 'YYYY/MM/DD', etc.
+    """
+    if text is None:
+        return None
+    s = str(text)
+    # quick cleanup
+    s = s.replace('\u00A0', ' ').replace('\u200B', '').replace('\uFEFF', '').strip()
+    if not s:
+        return None
+    import re
+    date_pat = r"(\d{4}[-/]\d{1,2}[-/]\d{1,2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?)"
+    m = re.search(date_pat, s)
+    if m:
+        return m.group(1)
+    return None
+
 def save_data(df_one_row, spreadsheet_id, worksheet_name):
     client = get_gspread_client()
     if client is None:
@@ -820,6 +839,31 @@ def show_analysis_section(original_df):
     # Create a dedicated 'date' column for filtering to avoid timestamp issues.
     if 'timestamp' in df_for_analysis.columns:
         parsed = parse_timestamp_series(df_for_analysis['timestamp'])
+
+        # Fill missing parsed timestamps by scanning other columns in the same row
+        missing_mask = parsed.isna()
+        if missing_mask.any():
+            # iterate over indices where timestamp couldn't be parsed
+            for idx in parsed[missing_mask].index:
+                # scan columns for a date-like substring
+                filled = None
+                for col in df_for_analysis.columns:
+                    try:
+                        cell = df_for_analysis.at[idx, col]
+                    except Exception:
+                        cell = None
+                    date_sub = extract_date_substring(cell)
+                    if date_sub:
+                        # try to parse the extracted substring
+                        try:
+                            parsed_val = pd.to_datetime(date_sub, errors='coerce', infer_datetime_format=True)
+                        except Exception:
+                            parsed_val = pd.NaT
+                        if not pd.isna(parsed_val):
+                            parsed.at[idx] = parsed_val
+                            filled = True
+                            break
+                # end scanning columns
         df_for_analysis['date_for_filter'] = parsed.dt.date
     
     # 日付による絞り込み
