@@ -856,11 +856,30 @@ def show_analysis_section(original_df):
                                                         row_vals = sheet.row_values(sheet_row)
                                                     except Exception as e_row:
                                                         row_vals = [f"取得エラー: {e_row}"]
-                                                    rows_to_show.append((sheet_row, row_vals))
+                                                    # detect date-like substring inside row_vals elements
+                                                    detected = None
+                                                    detected_idx = None
+                                                    parsed_val = None
+                                                    for i, cell in enumerate(row_vals):
+                                                        sub = extract_date_substring(cell)
+                                                        if sub:
+                                                            try:
+                                                                pv = pd.to_datetime(sub, errors='coerce', infer_datetime_format=True)
+                                                            except Exception:
+                                                                pv = pd.NaT
+                                                            if not pd.isna(pv):
+                                                                detected = sub
+                                                                detected_idx = i
+                                                                parsed_val = pv
+                                                                break
+                                                    rows_to_show.append({'sheet_row': sheet_row, 'values': row_vals, 'detected_substring': detected, 'detected_index': detected_idx, 'parsed': parsed_val})
 
-                                                # Display fetched rows
-                                                fetch_df = pd.DataFrame([{'sheet_row': r[0], 'values': r[1]} for r in rows_to_show])
-                                                st.write("シートから取得した生行データ（sheet_row, values）:")
+                                                # Display fetched rows with detection results
+                                                fetch_df = pd.DataFrame(rows_to_show)
+                                                # stringify parsed for display
+                                                if 'parsed' in fetch_df.columns:
+                                                    fetch_df['parsed'] = fetch_df['parsed'].astype(str)
+                                                st.write("シートから取得した生行データ（sheet_row, values, detected_substring, detected_index, parsed）:")
                                                 st.dataframe(fetch_df, width='stretch')
                                     except Exception as e_fetch:
                                         st.error(f"シート取得処理でエラー: {e_fetch}")
