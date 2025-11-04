@@ -225,21 +225,54 @@ def parse_timestamp_series(series):
     """
     if series is None:
         return pd.Series([], dtype='datetime64[ns]')
+
     # If already datetime dtype, normalize and return
     if pd.api.types.is_datetime64_any_dtype(series):
         return pd.to_datetime(series)
 
-    # Try the common explicit format first (fast & unambiguous)
-    try:
-        parsed = pd.to_datetime(series, format='%Y/%m/%d %H:%M:%S', errors='coerce')
-    except Exception:
-        parsed = pd.Series([pd.NaT] * len(series))
+    # Work on a string copy and clean common invisible characters then strip
+    s = series.astype(str).fillna('')
+    s = s.str.replace('\u00A0', ' ', regex=False)
+    s = s.str.replace('\u200B', '', regex=False)
+    s = s.str.replace('\uFEFF', '', regex=False)
+    s = s.str.strip()
 
-    # For any that failed, try a more general parser
-    if parsed.isna().any():
+    # Extract a date-like substring if the cell contains additional text
+    # Pattern:  YYYY[-/]MM[-/]DD[ T]HH:MM[:SS]  (time part optional)
+    date_pat = r"(\d{4}[-/]\d{1,2}[-/]\d{1,2}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?)"
+    try:
+        extracted = s.str.extract(date_pat, expand=False)
+        # If extraction produced values, prefer extracted substring
+        has_extracted = extracted.notna()
+        s_pref = s.copy()
+        s_pref[has_extracted] = extracted[has_extracted]
+    except Exception:
+        s_pref = s
+
+    # Try parsing with a few strategies to handle variations
+    parsed = pd.to_datetime(s_pref, format='%Y/%m/%d %H:%M:%S', errors='coerce')
+
+    # Try with seconds optional
+    mask_na = parsed.isna()
+    if mask_na.any():
+        parsed2 = pd.to_datetime(s_pref, format='%Y/%m/%d %H:%M', errors='coerce')
+        parsed = parsed.fillna(parsed2)
+
+    # General fallback (dateutil / infer)
+    mask_na = parsed.isna()
+    if mask_na.any():
         try:
-            fallback = pd.to_datetime(series, errors='coerce', infer_datetime_format=True)
+            fallback = pd.to_datetime(s_pref, errors='coerce', infer_datetime_format=True)
             parsed = parsed.fillna(fallback)
+        except Exception:
+            pass
+
+    # As last resort, try dayfirst=True for ambiguous formats
+    mask_na = parsed.isna()
+    if mask_na.any():
+        try:
+            fallback2 = pd.to_datetime(s_pref, errors='coerce', dayfirst=True, infer_datetime_format=True)
+            parsed = parsed.fillna(fallback2)
         except Exception:
             pass
 
