@@ -316,12 +316,31 @@ def save_data(df_one_row, spreadsheet_id, worksheet_name):
         for col in COLUMNS:
             if col in df_one_row.columns:
                 value = df_one_row.iloc[0][col]
-                if pd.isna(value): data_to_append.append("")
-                elif col == 'timestamp' and isinstance(value, (datetime, pd.Timestamp)):
-                     data_to_append.append(value.strftime('%Y-%m-%d %H:%M:%S'))
+                if pd.isna(value):
+                    data_to_append.append("")
+                elif col == 'timestamp':
+                    # When saving new records, store timestamp as date-only (YYYY-MM-DD)
+                    # If value is a datetime-like object, format the date part only.
+                    if isinstance(value, (datetime, pd.Timestamp)):
+                        data_to_append.append(value.strftime('%Y-%m-%d'))
+                    else:
+                        # If it's a string-like value, try to parse and convert to date-only when possible.
+                        val_str = str(value).strip()
+                        if val_str:
+                            try:
+                                parsed_val = pd.to_datetime(val_str, errors='coerce', infer_datetime_format=True)
+                                if pd.notna(parsed_val):
+                                    data_to_append.append(parsed_val.strftime('%Y-%m-%d'))
+                                else:
+                                    data_to_append.append(val_str)
+                            except Exception:
+                                data_to_append.append(val_str)
+                        else:
+                            data_to_append.append("")
                 elif col == 'finish_turn' and pd.notna(value):
-                     data_to_append.append(int(value))
-                else: data_to_append.append(str(value))
+                    data_to_append.append(int(value))
+                else:
+                    data_to_append.append(str(value))
             else:
                 data_to_append.append("")
         worksheet.append_row(data_to_append, value_input_option='USER_ENTERED')
