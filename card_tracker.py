@@ -178,6 +178,35 @@ def load_data(spreadsheet_id, worksheet_name):
             else: df[col] = pd.Series(dtype='object')
     return df
 
+
+# --- 日付パースヘルパ ---
+def parse_timestamp_series(series):
+    """Try to robustly parse a Series of timestamps.
+    Supports strings like 'YYYY/MM/DD HH:MM:SS' and other common formats.
+    Returns a Series of pd.Timestamp (NaT when unparseable).
+    """
+    if series is None:
+        return pd.Series([], dtype='datetime64[ns]')
+    # If already datetime dtype, normalize and return
+    if pd.api.types.is_datetime64_any_dtype(series):
+        return pd.to_datetime(series)
+
+    # Try the common explicit format first (fast & unambiguous)
+    try:
+        parsed = pd.to_datetime(series, format='%Y/%m/%d %H:%M:%S', errors='coerce')
+    except Exception:
+        parsed = pd.Series([pd.NaT] * len(series))
+
+    # For any that failed, try a more general parser
+    if parsed.isna().any():
+        try:
+            fallback = pd.to_datetime(series, errors='coerce', infer_datetime_format=True)
+            parsed = parsed.fillna(fallback)
+        except Exception:
+            pass
+
+    return parsed
+
 def save_data(df_one_row, spreadsheet_id, worksheet_name):
     client = get_gspread_client()
     if client is None:
@@ -588,11 +617,12 @@ def show_analysis_section(original_df):
     
     if date_filter_type == "期間指定":
         if 'timestamp' in original_df.columns:
-            valid_dates = original_df['timestamp'].dropna()
+            parsed_dates = parse_timestamp_series(original_df['timestamp'])
+            valid_dates = parsed_dates.dropna()
             if not valid_dates.empty:
-                min_date = valid_dates.min().date() if hasattr(valid_dates.min(), 'date') else valid_dates.min()
-                max_date = valid_dates.max().date() if hasattr(valid_dates.max(), 'date') else valid_dates.max()
-                
+                min_date = valid_dates.min().date()
+                max_date = valid_dates.max().date()
+
                 col_start, col_end = st.columns(2)
                 with col_start:
                     start_date = st.date_input(
@@ -620,7 +650,8 @@ def show_analysis_section(original_df):
     
     elif date_filter_type == "特定日付指定":
         if 'timestamp' in original_df.columns:
-            valid_dates = original_df['timestamp'].dropna()
+            parsed_dates = parse_timestamp_series(original_df['timestamp'])
+            valid_dates = parsed_dates.dropna()
             if not valid_dates.empty:
                 if 'selected_dates' not in st.session_state:
                     st.session_state.selected_dates = []
@@ -666,7 +697,8 @@ def show_analysis_section(original_df):
 
     # Create a dedicated 'date' column for filtering to avoid timestamp issues.
     if 'timestamp' in df_for_analysis.columns:
-        df_for_analysis['date_for_filter'] = pd.to_datetime(df_for_analysis['timestamp'], errors='coerce').dt.date
+        parsed = parse_timestamp_series(df_for_analysis['timestamp'])
+        df_for_analysis['date_for_filter'] = parsed.dt.date
     
     # 日付による絞り込み
     if date_filter_type == "期間指定" and selected_date_range:
