@@ -124,6 +124,17 @@ def load_data(spreadsheet_id, worksheet_name):
         # header=0 は get_as_dataframe のデフォルトだが、明示的に指定
         df = get_as_dataframe(worksheet, evaluate_formulas=False, header=0, na_filter=True)
 
+        # Normalize common timestamp column names from external sources
+        # Some exports/sheets use 'date' or 'datetime' as the header. Map them to 'timestamp'.
+        if df is not None and 'timestamp' not in df.columns:
+            for alt in ['date', 'datetime', 'time']:
+                if alt in df.columns:
+                    try:
+                        df = df.rename(columns={alt: 'timestamp'})
+                        break
+                    except Exception:
+                        pass
+
         # COLUMNS に基づいて DataFrame を整形し、不足列は適切な型で追加
         # この処理は、get_as_dataframe がヘッダー行を正しく解釈した後に実行される
         temp_df = pd.DataFrame(columns=COLUMNS)
