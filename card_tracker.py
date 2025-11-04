@@ -1599,16 +1599,68 @@ def main():
         cols_to_display_actual = [col for col in display_columns if col in df.columns]
         df_display = df.copy()
         if 'timestamp' in df_display.columns:
-            df_display['timestamp'] = pd.to_datetime(df_display['timestamp'], errors='coerce')
-            not_nat_dates = df_display.dropna(subset=['timestamp'])
-            nat_dates = df_display[df_display['timestamp'].isna()]
-            df_display_sorted = pd.concat([not_nat_dates.sort_values(by='timestamp', ascending=False), nat_dates]).reset_index(drop=True)
-            if pd.api.types.is_datetime64_any_dtype(df_display_sorted['timestamp']):
-                df_display_sorted['timestamp'] = df_display_sorted['timestamp'].apply(
-                    lambda x: x.strftime('%Y-%m-%d %H:%M') if pd.notnull(x) else None)
+            # Robustly parse timestamps for display and filtering
+            parsed_series = parse_timestamp_series(df_display['timestamp'])
+
+            # Fill missing parsed timestamps by scanning other columns in the same row
+            missing_mask = parsed_series.isna()
+            if missing_mask.any():
+                for idx in parsed_series[missing_mask].index:
+                    filled = False
+                    for col in df_display.columns:
+                        try:
+                            cell = df_display.at[idx, col]
+                        except Exception:
+                            cell = None
+                        sub = extract_date_substring(cell)
+                        if sub:
+                            try:
+                                pv = pd.to_datetime(sub, errors='coerce', infer_datetime_format=True)
+                            except Exception:
+                                pv = pd.NaT
+                            if not pd.isna(pv):
+                                parsed_series.at[idx] = pv
+                                filled = True
+                                break
+                    # end scanning columns
+
+            # Create a date-only column for filtering (YYYY-MM-DD)
+            df_display['date_for_filter'] = parsed_series.dt.date
+
+            # Prepare a human-friendly display column. Prefer original raw string when present,
+            # otherwise show parsed value formatted as 'YYYY/MM/DD HH:MM:SS' or 'YYYY/MM/DD' when time is midnight.
+            def make_display(orig, parsed_val):
+                try:
+                    orig_str = '' if pd.isna(orig) else str(orig)
+                except Exception:
+                    orig_str = ''
+                if orig_str:
+                    return orig_str
+                if pd.isna(parsed_val):
+                    return None
+                # format parsed_val
+                try:
+                    if parsed_val.time() == pd.Timestamp(parsed_val).replace(hour=0, minute=0, second=0).time():
+                        return parsed_val.strftime('%Y/%m/%d')
+                    else:
+                        return parsed_val.strftime('%Y/%m/%d %H:%M:%S')
+                except Exception:
+                    return str(parsed_val)
+
+            df_display['timestamp_display'] = [make_display(o, p) for o, p in zip(df_display['timestamp'], parsed_series)]
+
+            # Sort by parsed datetime where available, keeping NaT at the end
+            df_display_sorted = df_display.copy()
+            df_display_sorted['_sort_ts'] = parsed_series
+            df_display_sorted = pd.concat([df_display_sorted[df_display_sorted['_sort_ts'].notna()].sort_values(by='_sort_ts', ascending=False), df_display_sorted[df_display_sorted['_sort_ts'].isna()]]).reset_index(drop=True)
+            df_display_sorted = df_display_sorted.drop(columns=['_sort_ts'])
+            # Replace display column for UI
+            if 'timestamp' in cols_to_display_actual:
+                # show timestamp_display instead of raw timestamp
+                cols_to_display_actual = ['timestamp_display' if c == 'timestamp' else c for c in cols_to_display_actual]
         else:
             df_display_sorted = df_display.reset_index(drop=True)
-        st.dataframe(df_display_sorted[cols_to_display_actual])
+    st.dataframe(df_display_sorted[cols_to_display_actual])
         csv_export = df.to_csv(index=False).encode('utf-8-sig')
         st.download_button(
             label="戦績データをCSVでダウンロード", data=csv_export,
