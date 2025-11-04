@@ -790,12 +790,6 @@ def show_analysis_section(original_df):
     
     st.markdown("---")
 
-    # Optional debug: show raw vs parsed samples for columns that look like datetimes
-    try:
-        debug_ts = st.checkbox("デバッグ: timestamp パースの先頭サンプルを表示", key='debug_timestamp_parsing')
-    except Exception:
-        debug_ts = False
-
     all_seasons = [SELECT_PLACEHOLDER] + sorted([s for s in original_df['season'].astype(str).replace('', pd.NA).dropna().unique() if s and s.lower() != 'nan'])
     selected_season_for_analysis = st.selectbox("シーズンで絞り込み (任意):", options=all_seasons, key='ana_season_filter')
 
@@ -809,106 +803,6 @@ def show_analysis_section(original_df):
     selected_groups = st.multiselect("グループで絞り込み (任意):", options=all_groups, key='ana_group_filter')
 
     df_for_analysis = original_df.copy()
-
-    # If debug requested, display candidates and sample raw->parsed for inspection
-    if debug_ts and not original_df.empty:
-        try:
-            st.write("---")
-            st.write("デバッグ: 日時解析の候補カラムと先頭サンプル（raw -> parsed）")
-            candidate_cols = []
-            for col in original_df.columns:
-                try:
-                    parsed_col = parse_timestamp_series(original_df[col])
-                except Exception:
-                    parsed_col = pd.Series([pd.NaT] * len(original_df))
-                if parsed_col.dropna().any():
-                    candidate_cols.append(col)
-
-            if not candidate_cols:
-                st.write("日時らしいカラムは見つかりませんでした。")
-            else:
-                rows = min(10, len(original_df))
-                sample = pd.DataFrame()
-                for col in candidate_cols:
-                    sample[f"{col} (raw)"] = original_df[col].astype(str).reset_index(drop=True).head(rows)
-                    sample[f"{col} (parsed)"] = parse_timestamp_series(original_df[col]).astype(str).reset_index(drop=True).head(rows)
-                st.dataframe(sample, width='stretch')
-                # Additionally show failing rows from the end (ユーザーの要望: 後ろからデバッグ)
-                st.write("")
-                st.write("---")
-                st.write("デバッグ: 解析に失敗している行（下から最大20件） — raw と parsed を表示します")
-                for col in candidate_cols:
-                    parsed_col = parse_timestamp_series(original_df[col])
-                    mask_fail = parsed_col.isna()
-                    if mask_fail.any():
-                        failing = original_df.loc[mask_fail, col].astype(str).reset_index()
-                        # show last up to 20 failing rows
-                        if not failing.empty:
-                            last_fail = failing.tail(20).copy()
-                            last_fail.columns = ['row_index', f'{col} (raw)']
-                            last_fail[f'{col} (parsed)'] = parse_timestamp_series(last_fail[f'{col} (raw)']).astype(str)
-                            st.write(f"列: {col} — 解析失敗行 (末尾から)")
-                            st.dataframe(last_fail, width='stretch')
-                            # Additional option: fetch the actual sheet rows for these indices
-                            try:
-                                if st.button(f"シート上の該当行を表示: {col}"):
-                                    # Attempt to fetch corresponding sheet rows from Google Sheets
-                                    try:
-                                        client = get_gspread_client()
-                                        if client is None:
-                                            st.error("Google Sheets クライアントが取得できませんでした。認証を確認してください。")
-                                        elif not SPREADSHEET_ID:
-                                            st.error("SPREADSHEET_ID が設定されていません。secrets を確認してください。")
-                                        else:
-                                            try:
-                                                sheet = client.open_by_key(SPREADSHEET_ID).worksheet(WORKSHEET_NAME)
-                                            except Exception as e_open:
-                                                st.error(f"スプレッドシートを開けませんでした: {e_open}")
-                                                sheet = None
-
-                                            if sheet is not None:
-                                                rows_to_show = []
-                                                for ridx in last_fail['row_index'].tolist():
-                                                    # Convert dataframe index to sheet row number. Assumes header is row 1 and data starts at row 2.
-                                                    sheet_row = int(ridx) + 2
-                                                    try:
-                                                        row_vals = sheet.row_values(sheet_row)
-                                                    except Exception as e_row:
-                                                        row_vals = [f"取得エラー: {e_row}"]
-                                                    # detect date-like substring inside row_vals elements
-                                                    detected = None
-                                                    detected_idx = None
-                                                    parsed_val = None
-                                                    for i, cell in enumerate(row_vals):
-                                                        sub = extract_date_substring(cell)
-                                                        if sub:
-                                                            try:
-                                                                pv = pd.to_datetime(sub, errors='coerce', infer_datetime_format=True)
-                                                            except Exception:
-                                                                pv = pd.NaT
-                                                            if not pd.isna(pv):
-                                                                detected = sub
-                                                                detected_idx = i
-                                                                parsed_val = pv
-                                                                break
-                                                    rows_to_show.append({'sheet_row': sheet_row, 'values': row_vals, 'detected_substring': detected, 'detected_index': detected_idx, 'parsed': parsed_val})
-
-                                                # Display fetched rows with detection results
-                                                fetch_df = pd.DataFrame(rows_to_show)
-                                                # stringify parsed for display
-                                                if 'parsed' in fetch_df.columns:
-                                                    fetch_df['parsed'] = fetch_df['parsed'].astype(str)
-                                                st.write("シートから取得した生行データ（sheet_row, values, detected_substring, detected_index, parsed）:")
-                                                st.dataframe(fetch_df, width='stretch')
-                                    except Exception as e_fetch:
-                                        st.error(f"シート取得処理でエラー: {e_fetch}")
-                            except Exception:
-                                pass
-        except Exception as e:
-            try:
-                st.error(f"デバッグ出力でエラーが発生しました: {e}")
-            except Exception:
-                pass
 
     # Create a dedicated 'date' column for filtering to avoid timestamp issues.
     if 'timestamp' in df_for_analysis.columns:
